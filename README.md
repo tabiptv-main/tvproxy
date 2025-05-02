@@ -96,9 +96,9 @@ http://server-ip:7680/proxy/m3u?url=<URL_M3U8>
 
 ricorda non proxare la lista completa ma dento la lista prima di ogni url m3u8 metti http://server-ip:7680/proxy/m3u?url=<URL_M3U8>
 
-se hai headers diversi allora metti http://server-ip:7680/proxy/m3u?url=<URL_M3U8><HEADERS>
+se hai headers diversi allora metti http://server-ip:7680/proxy/m3u?url=<URL_M3U8><HEADERS_PERSONALIZZATO>
 
-esempio <HEADERS>
+esempio <HEADERS_PERSONALIZZATO>
 
 &header_user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36&header_referer=https://ilovetoplay.xyz/&header_origin=https://ilovetoplay.xyz
 
