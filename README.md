@@ -1,5 +1,8 @@
 # tvproxy
 
+---
+
+per adesso funziona solo su HuggingFace!
 
 ---
 
