@@ -1,7 +1,5 @@
 # tvproxy
 
-Ecco il README.md completamente formattato per essere facilmente copiabile e incollabile.
-
 
 ---
 
@@ -17,7 +15,19 @@ Superare restrizioni di accesso (es. Referer, User-Agent).
 
 Dockerizzarlo per l'uso su qualsiasi macchina o server.
 
+---
 
+🔧 Installazione su HuggingFace
+
+1️⃣ Creare un nuovo Space
+
+2️⃣ Metti un nome qualsiasi e seleziona docker
+
+3️⃣ Lascialo Pubblico e crea il tuo Space
+
+4️⃣ Andare in altro a destra, clicca sui tre puntini -> Files, carica qui tutti i file della repo -> FINITO
+
+5️⃣ Adesso clicca sempre sui tre puntini -> Embed this Space, il Direct Url sarà il tuo Url da utilizzare
 
 ---
 
@@ -89,6 +99,8 @@ ssh user@server-ip
 cd /home/user/m3u8-proxy
 docker build -t m3u8-proxy .
 docker run -d -p 7680:7680 --name m3u8-proxy m3u8-proxy
+
+---
 
 Ora il proxy sarà raggiungibile da qualsiasi dispositivo all’indirizzo:
 
