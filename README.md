@@ -21,7 +21,7 @@ Dockerizzarlo per l'uso su qualsiasi macchina o server.
 
 1️⃣ Andare su Projects -> Deploy a Web Service -> Piblic Git Repo
 
-2️⃣ Metti il link github -> Connect
+2️⃣ Metti il link github (https://github.com/nzo66/tvproxy) -> Connect
 
 3️⃣ Mettere un nome a piacimento
 
