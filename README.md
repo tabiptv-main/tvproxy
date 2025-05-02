@@ -47,16 +47,16 @@ Dockerizzarlo per l'uso su qualsiasi macchina o server.
 
 1️⃣ Clonare il Repository
 
-git clone https://github.com/tuo-username/m3u8-proxy.git
-cd m3u8-proxy
+git clone https://github.com/tuo-username/tvproxy.git
+cd nome-repo
 
 2️⃣ Costruire l'Immagine Docker
 
-docker build -t m3u8-proxy .
+docker build -t tvproxy .
 
 3️⃣ Avviare il Container
 
-docker run -d -p 7680:7680 --name m3u8-proxy m3u8-proxy
+docker run -d -p 7680:7680 --name tvproxy tvproxy
 
 4️⃣ Verificare che il Proxy sia Attivo
 
@@ -74,19 +74,19 @@ The requested URL was not found on the server. If you entered the URL manually p
 
 🔹 Controllare i log del container
 
-docker logs -f m3u8-proxy
+docker logs -f tvproxy
 
 🔹 Fermare il container
 
-docker stop m3u8-proxy
+docker stop tvproxy
 
 🔹 Riavviare il container
 
-docker start m3u8-proxy
+docker start tvproxy
 
 🔹 Rimuovere il container
 
-docker rm -f m3u8-proxy
+docker rm -f tvproxy
 
 
 ---
@@ -103,14 +103,14 @@ sudo apt update && sudo apt install -y docker.io
 
 Se sei su Windows, usa WinSCP o scp:
 
-scp -r m3u8-proxy user@server-ip:/home/user/
+scp -r tvproxy user@server-ip:/home/user/
 
 3️⃣ Accedi al server e avvia il container
 
 ssh user@server-ip
-cd /home/user/m3u8-proxy
-docker build -t m3u8-proxy .
-docker run -d -p 7680:7680 --name m3u8-proxy m3u8-proxy
+cd /home/user/tvproxy
+docker build -t tvproxy .
+docker run -d -p 7680:7680 --name tvproxy tvproxy
 
 ---
 
