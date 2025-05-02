@@ -48,7 +48,7 @@ Dockerizzarlo per l'uso su qualsiasi macchina o server.
 1️⃣ Clonare il Repository
 
 git clone https://github.com/tuo-username/tvproxy.git
-cd nome-repo
+cd tvproxy
 
 2️⃣ Costruire l'Immagine Docker
 
