@@ -19,9 +19,13 @@ Dockerizzarlo per l'uso su qualsiasi macchina o server.
 
 🔧 Installazione su Render
 
-1️⃣ andate su Projects -> Deploy a Web Service -> Piblic Git Repo
+1️⃣ Andare su Projects -> Deploy a Web Service -> Piblic Git Repo
 
-2️⃣ Metti il link github 
+2️⃣ Metti il link github -> Connect
+
+3️⃣ Mettere un nome a piacimento
+
+4️⃣ Su "Instance Type" mettere Free -> Deploy Web Service (in basso)
 
 ---
 
