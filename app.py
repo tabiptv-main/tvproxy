@@ -33,17 +33,14 @@ def proxy_m3u():
         "Origin": "https://vavoo.to"
     }
 
-    headers = {}
-    for key, value in request.args.items():
-        key_lower = key.lower()
-        if key_lower.startswith("header_") or key_lower.startswith("h_"):
-            header_name = unquote(key.split("_", 1)[1]).replace("_", "-")
-            headers[header_name] = unquote(value).strip()
-
-    full_headers = {**default_headers, **headers}
+    headers = {**default_headers, **{
+        unquote(key[7:]).replace("_", "-"): unquote(value).strip()
+        for key, value in request.args.items()
+        if key.lower().startswith("header_")
+    }}
 
     try:
-        response = requests.get(m3u_url, headers=full_headers, allow_redirects=True)
+        response = requests.get(m3u_url, headers=headers, allow_redirects=True)
         response.raise_for_status()
         final_url = response.url
         m3u_content = response.text
@@ -56,11 +53,7 @@ def proxy_m3u():
         parsed_url = urlparse(final_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path.rsplit('/', 1)[0]}/"
 
-        headers_query = "&".join([
-            f"{key}={quote(value)}"
-            for key, value in request.args.items()
-            if key.lower().startswith("header_") or key.lower().startswith("h_")
-        ])
+        headers_query = "&".join([f"header_{quote(k)}={quote(v)}" for k, v in headers.items()])
 
         modified_m3u8 = []
         for line in m3u_content.splitlines():
@@ -87,9 +80,9 @@ def proxy_ts():
         return "Errore: Parametro 'url' mancante", 400
 
     headers = {
-        unquote(key.split("_", 1)[1]).replace("_", "-"): unquote(value).strip()
+        unquote(key[7:]).replace("_", "-"): unquote(value).strip()
         for key, value in request.args.items()
-        if key.lower().startswith("header_") or key.lower().startswith("h_")
+        if key.lower().startswith("header_")
     }
 
     try:
@@ -108,9 +101,9 @@ def proxy_key():
         return "Errore: Parametro 'url' mancante per la chiave", 400
 
     headers = {
-        unquote(key.split("_", 1)[1]).replace("_", "-"): unquote(value).strip()
+        unquote(key[7:]).replace("_", "-"): unquote(value).strip()
         for key, value in request.args.items()
-        if key.lower().startswith("header_") or key.lower().startswith("h_")
+        if key.lower().startswith("header_")
     }
 
     try:
