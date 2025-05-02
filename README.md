@@ -17,6 +17,14 @@ Dockerizzarlo per l'uso su qualsiasi macchina o server.
 
 ---
 
+🔧 Installazione su Render
+
+1️⃣ andate su Projects -> Deploy a Web Service -> Piblic Git Repo
+
+2️⃣ Metti il link github 
+
+---
+
 🔧 Installazione su HuggingFace
 
 1️⃣ Creare un nuovo Space
