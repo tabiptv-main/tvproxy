@@ -116,7 +116,7 @@ docker run -d -p 7680:7680 --name m3u8-proxy m3u8-proxy
 
 Ora il proxy sarà raggiungibile da qualsiasi dispositivo all’indirizzo:
 
-(se utilizzi HuggingFace non hai bisogno di mettere la Porta)
+(se utilizzi HuggingFace o Render non hai bisogno di mettere la Porta)
 
 http://server-ip:7680/proxy/m3u?url=<URL_M3U8>
 
