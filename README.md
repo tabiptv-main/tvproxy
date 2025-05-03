@@ -59,11 +59,11 @@ docker build -t tvproxy .
 
 3️⃣ Avviare il Container
 
-docker run -d -p 7680:7680 --name tvproxy tvproxy
+docker run -d -p 7860:7860 --name tvproxy tvproxy
 
 4️⃣ Verificare che il Proxy sia Attivo
 
-curl http://localhost:7680/
+curl http://localhost:7860/
 
 Dovresti ricevere una risposta tipo:
 
@@ -113,7 +113,7 @@ scp -r tvproxy user@server-ip:/home/user/
 ssh user@server-ip
 cd /home/user/tvproxy
 docker build -t tvproxy .
-docker run -d -p 7680:7680 --name tvproxy tvproxy
+docker run -d -p 7860:7860 --name tvproxy tvproxy
 
 ---
 
@@ -121,11 +121,11 @@ Ora il proxy sarà raggiungibile da qualsiasi dispositivo all’indirizzo:
 
 (se utilizzi HuggingFace o Render non hai bisogno di mettere la Porta)
 
-http://server-ip:7680/proxy/m3u?url=<URL_M3U8>
+http://server-ip:7860/proxy/m3u?url=<URL_M3U8>
 
 ricorda non proxare la lista completa ma dento la lista prima di ogni url m3u8 metti http://server-ip:7680/proxy/m3u?url=<URL_M3U8>
 
-se hai headers diversi allora metti http://server-ip:7680/proxy/m3u?url=<URL_M3U8><HEADERS_PERSONALIZZATO>
+se hai headers diversi allora metti http://server-ip:7860/proxy/m3u?url=<URL_M3U8><HEADERS_PERSONALIZZATO>
 
 esempio <HEADERS_PERSONALIZZATO>
 
