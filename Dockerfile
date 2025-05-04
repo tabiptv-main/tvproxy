@@ -13,7 +13,7 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Espone la porta 5000 per Flask
-EXPOSE 7860
+EXPOSE 5000
 
 # Comando per avviare il server Flask
 CMD ["python", "app.py"]
