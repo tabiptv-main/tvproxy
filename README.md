@@ -107,7 +107,7 @@ http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8
 ### 🎯 Headers Personalizzati (opzionale)
 
 ```txt
-&header_user-agent=Mozilla/5.0...&header_referer=https://ilovetoplay.xyz/&header_origin=https://ilovetoplay.xyz
+&h_user-agent=Mozilla/5.0...&h_referer=https://ilovetoplay.xyz/&h_origin=https://ilovetoplay.xyz
 ```
 
 ---
