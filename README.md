@@ -67,31 +67,6 @@ The requested URL was not found on the server...
 
 ---
 
-## 🌐 Deploy su VPS (es. Ubuntu)
-
-1. Installa Docker:
-
-```bash
-sudo apt update && sudo apt install -y docker.io
-```
-
-2. Copia i file nel server (es. con `scp` o `WinSCP`):
-
-```bash
-scp -r tvproxy user@<server-ip>:/home/user/
-```
-
-3. Avvia il container:
-
-```bash
-ssh user@<server-ip>
-cd /home/user/tvproxy
-docker build -t tvproxy .
-docker run -d -p 7860:7860 --name tvproxy tvproxy
-```
-
----
-
 ## 🔗 Utilizzo del Proxy
 
 ```txt
