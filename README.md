@@ -1,7 +1,5 @@
 # 📺 tvproxy
 
-> ⚠️ **Attualmente funziona solo su HuggingFace!**
-
 ## 🚀 M3U8 Proxy Dockerizzato
 
 Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
