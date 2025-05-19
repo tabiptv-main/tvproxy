@@ -9,7 +9,7 @@ from threading import Lock
 app = Flask(__name__)
 
 # --- CACHE IN MEMORIA SEMPLICE ---
-CACHE_TTL = 60  # secondi, puoi aumentare se vuoi
+CACHE_TTL = 7200  # secondi, puoi aumentare se vuoi
 ts_cache = {}
 key_cache = {}
 cache_lock = Lock()
