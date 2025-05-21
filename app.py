@@ -106,7 +106,7 @@ def resolve_m3u8_link(url, headers=None):
                 auth_sig_match = re.search(r'(?s) authSig\s*= \"([^"]*)', iframe_response_text)
                 auth_host_match = re.search(r'\}\s*fetchWithRetry\(\s*\'([^\']*)', iframe_response_text)
                 # Estrai anche il parametro per la server lookup URL
-                server_lookup_match = re.search(r'n fetchWithRetry\\(\\s*\'([^\']*)', iframe_response_text)
+                server_lookup_match = re.search('n fetchWithRetry\(\s*\'([^\']*)', iframe_response_text)
 
                 if not all([channel_key_match, auth_ts_match, auth_rnd_match, auth_sig_match, auth_host_match, server_lookup_match]):
                      raise ValueError("Impossibile estrarre tutti i parametri dinamici dall'iframe response.")
