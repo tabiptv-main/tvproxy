@@ -56,6 +56,36 @@ The requested URL was not found on the server...
 
 ---
 
+## 🐍 Avvio con Python (Locale)
+
+### ✅ Setup e Avvio
+
+```bash
+# Clona il repository
+git clone https://github.com/nzo66/tvproxy.git
+cd tvproxy
+
+# Installa le dipendenze
+pip install -r requirements.txt
+
+# Avvia il server
+python app.py
+```
+
+### 🔍 Verifica
+
+```bash
+curl http://localhost:7860/
+```
+
+Risposta attesa:
+```
+Not Found
+The requested URL was not found on the server...
+```
+
+---
+
 ## 🛠️ Gestione Docker
 
 - 📄 Logs: `docker logs -f tvproxy`
@@ -92,6 +122,7 @@ http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8
 - 🔓 Supera restrizioni geografiche o di accesso
 - 🖥️ Compatibile con **qualsiasi player IPTV**
 - 🐳 Totalmente dockerizzato, pronto per il deploy
+- 🐍 Avviabile anche direttamente con **Python**
 
 ---
 
