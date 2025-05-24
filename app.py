@@ -107,13 +107,13 @@ def periodic_cleanup():
         last_cleanup = current_time
 
 def detect_m3u_type(content):
-    """ Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS) """
+    """Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS)"""
     if "#EXTM3U" in content and "#EXTINF" in content:
         return "m3u8"
     return "m3u"
 
 def replace_key_uri(line, headers_query):
-    """ Sostituisce l'URI della chiave AES-128 con il proxy """
+    """Sostituisce l'URI della chiave AES-128 con il proxy"""
     match = re.search(r'URI="([^"]+)"', line)
     if match:
         key_url = match.group(1)
@@ -266,7 +266,7 @@ def resolve_m3u8_link(url, headers=None):
 
 @app.route('/proxy/m3u')
 def proxy_m3u():
-    """ Proxy per file M3U e M3U8 con supporto per redirezioni e header personalizzati """
+    """Proxy per file M3U e M3U8 con supporto per redirezioni e header personalizzati"""
     periodic_cleanup()  # Pulizia periodica
     
     m3u_url = request.args.get('url', '').strip()
@@ -353,7 +353,7 @@ def proxy_m3u():
 
 @app.route('/proxy/resolve')
 def proxy_resolve():
-    """ Proxy per risolvere e restituire un URL M3U8 """
+    """Proxy per risolvere e restituire un URL M3U8"""
     periodic_cleanup()
     
     url = request.args.get('url', '').strip()
@@ -386,7 +386,7 @@ def proxy_resolve():
 
 @app.route('/proxy/ts')
 def proxy_ts():
-    """ Proxy per segmenti .TS con headers personalizzati e caching ottimizzato """
+    """Proxy per segmenti .TS con headers personalizzati e caching ottimizzato"""
     periodic_cleanup()
     
     ts_url = request.args.get('url', '').strip()
@@ -427,7 +427,7 @@ def proxy_ts():
 
 @app.route('/proxy/key')
 def proxy_key():
-    """ Proxy per la chiave AES-128 con header personalizzati """
+    """Proxy per la chiave AES-128 con header personalizzati"""
     key_url = request.args.get('url', '').strip()
     if not key_url:
         return "Errore: Parametro 'url' mancante per la chiave", 400
@@ -464,7 +464,9 @@ def cache_stats():
         "key_cache_size": len(key_cache.cache),
         "key_cache_bytes": key_cache.current_size,
         "total_bytes": ts_cache.current_size + key_cache.current_size,
-        "max_total_bytes": MAX_TOTAL_CACHE_SIZE
+        "max_total_bytes": MAX_TOTAL_CACHE_SIZE,
+        "cache_ttl": CACHE_TTL,
+        "max_ts_size": MAX_TS_SIZE
     }
 
 @app.route('/cache/clear')
