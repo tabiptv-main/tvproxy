@@ -40,6 +40,7 @@ git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 docker build -t tvproxy .
 docker run -d -p 7860:7860 --name tvproxy tvproxy
+```
 
 ---
 
