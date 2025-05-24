@@ -40,19 +40,6 @@ git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 docker build -t tvproxy .
 docker run -d -p 7860:7860 --name tvproxy tvproxy
-```
-
-### 🔍 Verifica
-
-```bash
-curl http://localhost:7860/
-```
-
-Risposta attesa:
-```
-Not Found
-The requested URL was not found on the server...
-```
 
 ---
 
@@ -70,18 +57,6 @@ pip install -r requirements.txt
 
 # Avvia il server
 python app.py
-```
-
-### 🔍 Verifica
-
-```bash
-curl http://localhost:7860/
-```
-
-Risposta attesa:
-```
-Not Found
-The requested URL was not found on the server...
 ```
 
 ---
