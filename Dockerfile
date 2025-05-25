@@ -12,8 +12,11 @@ COPY app.py .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Espone la porta 7860 per Flask
+# Installa Gunicorn (se non è già in requirements.txt)
+RUN pip install gunicorn
+
+# Espone la porta 7860 per Flask/Gunicorn
 EXPOSE 7860
 
-# Comando per avviare il server Flask
-CMD ["python", "app.py"]
+# Comando per avviare il server Flask con Gunicorn e 4 worker
+CMD ["gunicorn", "app:app", "-w", "4", "-b", "0.0.0.0:7860"]
