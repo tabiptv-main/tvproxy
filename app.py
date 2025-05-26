@@ -130,7 +130,7 @@ def resolve_m3u8_link(url, headers=None):
     if not url:
         print("Errore: URL non fornito.")
         return {"resolved_url": None, "headers": {}}
-
+    
     print(f"Tentativo di risoluzione URL: {url}")
     # Utilizza gli header forniti, altrimenti usa un User-Agent di default
     current_headers = headers if headers else {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0+Safari/537.36'}
@@ -183,7 +183,7 @@ def resolve_m3u8_link(url, headers=None):
                 server_lookup_match = re.search(r'n fetchWithRetry\(\s*\'([^\']*)', iframe_response_text)
 
                 if not all([channel_key_match, auth_ts_match, auth_rnd_match, auth_sig_match, auth_host_match, server_lookup_match]):
-                     raise ValueError("Impossibile estrarre tutti i parametri dinamici dall'iframe response.")
+                    raise ValueError("Impossibile estrarre tutti i parametri dinamici dall'iframe response.")
 
                 channel_key = channel_key_match.group(1)
                 auth_ts = auth_ts_match.group(1)
@@ -218,7 +218,7 @@ def resolve_m3u8_link(url, headers=None):
                 # Ottavo passo (Iframe): Costruisci il link finale
                 host_match = re.search('(?s)m3u8 =.*?:.*?:.*?".*?".*?"([^"]*)', iframe_response_text)
                 if not host_match:
-                     raise ValueError("Impossibile trovare l'host finale per l'm3u8.")
+                    raise ValueError("Impossibile trovare l'host finale per l'm3u8.")
                 host = host_match.group(1)
                 print(f"Passo 8 (Iframe): Trovato host finale per m3u8: {host}")
 
