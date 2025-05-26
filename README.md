@@ -57,7 +57,7 @@ cd tvproxy
 pip install -r requirements.txt
 
 # Avvia il server
-python app.py
+gunicorn app:app -w 4 -b 0.0.0.0:7860
 ```
 
 ---
