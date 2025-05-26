@@ -3,111 +3,11 @@ import requests
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
 import traceback
-import time
-from threading import Lock
-import gc
-from collections import OrderedDict
 
 app = Flask(__name__)
 
-# --- CONFIGURAZIONE CACHE OTTIMIZZATA ---
-CACHE_TTL = 30  # Ridotto da 60 a 30 secondi
-MAX_CACHE_SIZE = 50  # Limite massimo di elementi in cache
-MAX_TS_SIZE = 5 * 1024 * 1024  # Massimo 5MB per segmento TS
-MAX_TOTAL_CACHE_SIZE = 100 * 1024 * 1024  # Massimo 100MB totali in cache
-
-# Cache LRU (Least Recently Used) ottimizzate
-class LRUCache:
-    def __init__(self, max_size, max_item_size=None):
-        self.max_size = max_size
-        self.max_item_size = max_item_size
-        self.cache = OrderedDict()
-        self.lock = Lock()
-        self.current_size = 0  # Traccia la dimensione totale in byte
-    
-    def get(self, key):
-        with self.lock:
-            if key in self.cache:
-                timestamp, value = self.cache[key]
-                if time.time() - timestamp < CACHE_TTL:
-                    # Sposta alla fine (most recently used)
-                    self.cache.move_to_end(key)
-                    return value
-                else:
-                    # Rimuovi elemento scaduto
-                    self._remove_item(key)
-            return None
-    
-    def put(self, key, value):
-        with self.lock:
-            # Controlla dimensione dell'elemento
-            value_size = len(value) if isinstance(value, (bytes, str)) else 0
-            if self.max_item_size and value_size > self.max_item_size:
-                return  # Non cachare elementi troppo grandi
-            
-            # Rimuovi elemento esistente se presente
-            if key in self.cache:
-                self._remove_item(key)
-            
-            # Assicurati che ci sia spazio
-            while len(self.cache) >= self.max_size or self.current_size + value_size > MAX_TOTAL_CACHE_SIZE:
-                if not self.cache:
-                    break
-                self._remove_oldest()
-            
-            # Aggiungi nuovo elemento
-            self.cache[key] = (time.time(), value)
-            self.current_size += value_size
-    
-    def _remove_item(self, key):
-        if key in self.cache:
-            _, value = self.cache[key]
-            value_size = len(value) if isinstance(value, (bytes, str)) else 0
-            self.current_size -= value_size
-            del self.cache[key]
-    
-    def _remove_oldest(self):
-        if self.cache:
-            oldest_key = next(iter(self.cache))
-            self._remove_item(oldest_key)
-    
-    def cleanup_expired(self):
-        """Rimuove elementi scaduti"""
-        with self.lock:
-            current_time = time.time()
-            expired_keys = [
-                key for key, (timestamp, _) in self.cache.items()
-                if current_time - timestamp >= CACHE_TTL
-            ]
-            for key in expired_keys:
-                self._remove_item(key)
-    
-    def clear(self):
-        """Svuota completamente la cache"""
-        with self.lock:
-            self.cache.clear()
-            self.current_size = 0
-
-# Inizializza cache ottimizzate
-ts_cache = LRUCache(MAX_CACHE_SIZE, MAX_TS_SIZE)
-key_cache = LRUCache(MAX_CACHE_SIZE // 2)  # Cache piÃ¹ piccola per le chiavi
-
-# Timer per pulizia periodica
-last_cleanup = time.time()
-CLEANUP_INTERVAL = 60  # Pulizia ogni 60 secondi
-
-def periodic_cleanup():
-    """Pulizia periodica delle cache"""
-    global last_cleanup
-    current_time = time.time()
-    if current_time - last_cleanup > CLEANUP_INTERVAL:
-        ts_cache.cleanup_expired()
-        key_cache.cleanup_expired()
-        gc.collect()  # Forza garbage collection
-        last_cleanup = current_time
-
 def detect_m3u_type(content):
-    """Rileva se Ã¨ un M3U (lista IPTV) o un M3U8 (flusso HLS)"""
+    """Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS)"""
     if "#EXTM3U" in content and "#EXTINF" in content:
         return "m3u8"
     return "m3u"
@@ -141,7 +41,6 @@ def resolve_m3u8_link(url, headers=None):
     try:
         # Utilizza una sessione per gestire i cookie e i redirect
         with requests.Session() as session:
-            # Imposta timeout piÃ¹ aggressivi per ridurre l'uso di memoria
             session.timeout = 5
             
             # Primo passo: Richiesta all'URL iniziale
@@ -267,8 +166,6 @@ def resolve_m3u8_link(url, headers=None):
 @app.route('/proxy/m3u')
 def proxy_m3u():
     """Proxy per file M3U e M3U8 con supporto per redirezioni e header personalizzati"""
-    periodic_cleanup()  # Pulizia periodica
-    
     m3u_url = request.args.get('url', '').strip()
     if not m3u_url:
         return "Errore: Parametro 'url' mancante", 400
@@ -354,8 +251,6 @@ def proxy_m3u():
 @app.route('/proxy/resolve')
 def proxy_resolve():
     """Proxy per risolvere e restituire un URL M3U8"""
-    periodic_cleanup()
-    
     url = request.args.get('url', '').strip()
     if not url:
         return "Errore: Parametro 'url' mancante", 400
@@ -386,9 +281,7 @@ def proxy_resolve():
 
 @app.route('/proxy/ts')
 def proxy_ts():
-    """Proxy per segmenti .TS con headers personalizzati e caching ottimizzato"""
-    periodic_cleanup()
-    
+    """Proxy per segmenti .TS con headers personalizzati - SENZA CACHE"""
     ts_url = request.args.get('url', '').strip()
     if not ts_url:
         return "Errore: Parametro 'url' mancante", 400
@@ -399,28 +292,17 @@ def proxy_ts():
         if key.lower().startswith("h_")
     }
 
-    # Controlla cache
-    cached_data = ts_cache.get(ts_url)
-    if cached_data:
-        return Response(cached_data, content_type="video/mp2t")
-
     try:
-        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=5)
+        # Stream diretto senza cache per evitare freezing
+        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=10)
         response.raise_for_status()
         
-        # Leggi in chunks per evitare di caricare tutto in memoria
-        data = b''
-        for chunk in response.iter_content(chunk_size=8192):
-            data += chunk
-            # Limite di sicurezza per evitare segmenti troppo grandi
-            if len(data) > MAX_TS_SIZE:
-                break
+        def generate():
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
         
-        # Carica in cache solo se non troppo grande
-        if len(data) <= MAX_TS_SIZE:
-            ts_cache.put(ts_url, data)
-        
-        return Response(data, content_type="video/mp2t")
+        return Response(generate(), content_type="video/mp2t")
     
     except requests.RequestException as e:
         return f"Errore durante il download del segmento TS: {str(e)}", 500
@@ -438,44 +320,14 @@ def proxy_key():
         if key.lower().startswith("h_")
     }
 
-    # Controlla cache per le chiavi
-    cached_key = key_cache.get(key_url)
-    if cached_key:
-        return Response(cached_key, content_type="application/octet-stream")
-
     try:
         response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=5)
         response.raise_for_status()
-        
-        # Le chiavi sono piccole, cachale sempre
-        key_cache.put(key_url, response.content)
         
         return Response(response.content, content_type="application/octet-stream")
     
     except requests.RequestException as e:
         return f"Errore durante il download della chiave AES-128: {str(e)}", 500
-
-@app.route('/cache/stats')
-def cache_stats():
-    """Endpoint per monitorare lo stato della cache"""
-    return {
-        "ts_cache_size": len(ts_cache.cache),
-        "ts_cache_bytes": ts_cache.current_size,
-        "key_cache_size": len(key_cache.cache),
-        "key_cache_bytes": key_cache.current_size,
-        "total_bytes": ts_cache.current_size + key_cache.current_size,
-        "max_total_bytes": MAX_TOTAL_CACHE_SIZE,
-        "cache_ttl": CACHE_TTL,
-        "max_ts_size": MAX_TS_SIZE
-    }
-
-@app.route('/cache/clear')
-def clear_cache():
-    """Endpoint per svuotare manualmente la cache"""
-    ts_cache.clear()
-    key_cache.clear()
-    gc.collect()
-    return "Cache svuotata con successo"
 
 @app.route('/')
 def index():
