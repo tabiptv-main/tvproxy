@@ -71,23 +71,64 @@ gunicorn app:app -w 4 -b 0.0.0.0:7860
 
 ---
 
-## 🔗 Utilizzo del Proxy
+## 🛠️ Come Utilizzare
 
-```txt
-http://<server-ip>:7860/proxy/m3u?url=<URL_M3U8>
+Assicurati di sostituire i placeholder come `<server-ip>` con l'indirizzo IP o l'hostname effettivo del tuo server e `<URL_...>` con gli URL specifici.
+
+---
+
+### 1. Proxy per Liste M3U Complete 📡
+
+Questo endpoint è progettato per proxare l'intera lista M3U. È particolarmente utile per garantire compatibilità e stabilità, con supporto menzionato per formati come Vavoo e Daddylive.
+
+**Formato URL:**
+```text
+http://<server-ip>:7860/proxy?url=<URL_LISTA_M3U>
 ```
 
-> ⚠️ Non proxare l'intera lista! Inserisci il proxy **prima di ogni URL m3u8**:
+**Dove:**
+-   `<server-ip>`: L'indirizzo IP o hostname del tuo server proxy.
+-   `<URL_LISTA_M3U>`: L'URL completo della lista M3U che vuoi proxare.
 
+> 📝 **Nota:** Questo endpoint è ideale per gestire l'intera collezione di flussi contenuta in un file M3U.
+
+---
+
+### 2. Proxy per Singoli Flussi M3U8 (con Headers Personalizzati) 📺✨
+
+Questo endpoint è specifico per proxare singoli flussi video `.m3u8`. La sua caratteristica distintiva è la capacità di inoltrare headers HTTP personalizzati, essenziale per scenari che richiedono autenticazione specifica o per simulare richieste da client particolari.
+
+**Formato URL Base:**
+```text
+http://<server-ip>:7860/proxy/m3u?url=<URL_FLUSSO_M3U8>
 ```
+
+**Esempio:**
+```text
 http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8
 ```
 
-### 🎯 Headers Personalizzati (opzionale)
+**Dove:**
+-   `<server-ip>`: L'indirizzo IP o hostname del tuo server proxy.
+-   `<URL_FLUSSO_M3U8>`: L'URL completo del singolo flusso M3U8.
 
-```txt
-&h_user-agent=Mozilla/5.0...&h_referer=https://ilovetoplay.xyz/&h_origin=https://ilovetoplay.xyz
+#### 🎯 Aggiungere Headers HTTP Personalizzati (Opzionale)
+
+Per includere headers personalizzati nella richiesta al flusso M3U8, accodali all'URL del proxy. Ogni header deve essere prefissato da `&h_`, seguito dal nome dell'header, un segno di uguale (`=`), e il valore dell'header.
+
+**Formato per gli Headers:**
+```text
+&h_<NOME_HEADER>=<VALORE_HEADER>
 ```
+
+**Esempio con Headers Personalizzati:**
+```text
+http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8&h_user-agent=Mozilla/5.0...&h_referer=https://ilovetoplay.xyz/&h_origin=https://ilovetoplay.xyz
+```
+
+> ⚠️ **Attenzione:**
+> - Ricorda di sostituire `Mozilla/5.0...` con lo User-Agent completo che intendi utilizzare.
+> - Se i valori degli header contengono caratteri speciali (es. spazi, due punti), assicurati che siano correttamente URL-encoded per evitare errori.
 
 ---
 
