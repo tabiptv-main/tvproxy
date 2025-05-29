@@ -82,8 +82,8 @@ def resolve_m3u8_link(url, headers=None):
                 server_lookup_match = re.search(r'n fetchWithRetry\(\s*\'([^\']*)', iframe_response_text)
 
                 if not all([channel_key_match, auth_ts_match, auth_rnd_match, auth_sig_match, auth_host_match, server_lookup_match]):
-                     raise ValueError("Impossibile estrarre tutti i parametri dinamici dall'iframe response.")
-
+                    raise ValueError("Impossibile estrarre tutti i parametri dinamici dall'iframe response.")
+                
                 channel_key = channel_key_match.group(1)
                 auth_ts = auth_ts_match.group(1)
                 auth_rnd = auth_rnd_match.group(1)
@@ -117,7 +117,7 @@ def resolve_m3u8_link(url, headers=None):
                 # Ottavo passo (Iframe): Costruisci il link finale
                 host_match = re.search('(?s)m3u8 =.*?:.*?:.*?".*?".*?"([^"]*)', iframe_response_text)
                 if not host_match:
-                     raise ValueError("Impossibile trovare l'host finale per l'm3u8.")
+                    raise ValueError("Impossibile trovare l'host finale per l'm3u8.")
                 host = host_match.group(1)
                 print(f"Passo 8 (Iframe): Trovato host finale per m3u8: {host}")
 
@@ -162,6 +162,47 @@ def resolve_m3u8_link(url, headers=None):
     except Exception as e:
         print(f"Errore generico durante la risoluzione: {e}")
         return {"resolved_url": url, "headers": current_headers}
+
+@app.route('/proxy')
+def proxy():
+    """Proxy per liste M3U che aggiunge automaticamente /proxy/m3u?url= con IP prima dei link"""
+    m3u_url = request.args.get('url', '').strip()
+    if not m3u_url:
+        return "Errore: Parametro 'url' mancante", 400
+
+    try:
+        # Ottieni l'IP del server
+        server_ip = request.host
+        
+        # Scarica la lista M3U originale
+        response = requests.get(m3u_url, timeout=10)
+        response.raise_for_status()
+        m3u_content = response.text
+        
+        # Modifica solo le righe che contengono URL (non iniziano con #)
+        modified_lines = []
+        for line in m3u_content.splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                # Verifica se il link contiene .php
+                if '.php' in line:
+                    # Aggiungi il prefisso specifico per i link PHP
+                    modified_line = f"http://87.106.207.13:8888/extractor/video?host=DLHD&api_password=soloiolaso&redirect_stream=true&d={line}"
+                else:
+                    # Per gli altri link, usa il proxy normale
+                    modified_line = f"http://{server_ip}/proxy/m3u?url={line}"
+                modified_lines.append(modified_line)
+            else:
+                # Mantieni invariate le righe di metadati
+                modified_lines.append(line)
+        
+        modified_content = '\n'.join(modified_lines)
+        return Response(modified_content, content_type="application/vnd.apple.mpegurl")
+        
+    except requests.RequestException as e:
+        return f"Errore durante il download della lista M3U: {str(e)}", 500
+    except Exception as e:
+        return f"Errore generico: {str(e)}", 500
 
 @app.route('/proxy/m3u')
 def proxy_m3u():
