@@ -23,6 +23,8 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 
 ## 🤗 Deploy su HuggingFace
 
+`ricora di fare factory rebuild quando aggiorni il proxy`
+
 1. Crea un nuovo **Space**
 2. Scegli un nome qualsiasi e imposta **Docker** come tipo
 3. Lascia **Public** e crea lo Space
