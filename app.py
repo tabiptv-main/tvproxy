@@ -184,13 +184,8 @@ def proxy():
         for line in m3u_content.splitlines():
             line = line.strip()
             if line and not line.startswith('#'):
-                # Verifica se il link contiene .php
-                if '.php' in line:
-                    # Aggiungi il prefisso specifico per i link PHP
-                    modified_line = f"http://87.106.207.13:8888/extractor/video?host=DLHD&api_password=soloiolaso&redirect_stream=true&d={line}"
-                else:
-                    # Per gli altri link, usa il proxy normale
-                    modified_line = f"http://{server_ip}/proxy/m3u?url={line}"
+                # Per tutti i link, usa il proxy normale
+                modified_line = f"http://{server_ip}/proxy/m3u?url={line}"
                 modified_lines.append(modified_line)
             else:
                 # Mantieni invariate le righe di metadati
