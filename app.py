@@ -1,8 +1,10 @@
+
 from flask import Flask, request, Response
 import requests
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
 import traceback
+import os
 
 app = Flask(__name__)
 
@@ -192,7 +194,12 @@ def proxy():
                 modified_lines.append(line)
         
         modified_content = '\n'.join(modified_lines)
-        return Response(modified_content, content_type="application/vnd.apple.mpegurl")
+
+        # Estrai il nome del file dall'URL originale
+        parsed_m3u_url = urlparse(m3u_url)
+        original_filename = os.path.basename(parsed_m3u_url.path)
+        
+        return Response(modified_content, content_type="application/vnd.apple.mpegurl", headers={'Content-Disposition': f'attachment; filename="{original_filename}"'})
         
     except requests.RequestException as e:
         return f"Errore durante il download della lista M3U: {str(e)}", 500
