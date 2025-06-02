@@ -3,7 +3,6 @@ from flask import Flask, request, Response
 import requests
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
-import traceback
 import os
 
 app = Flask(__name__)
@@ -337,7 +336,7 @@ def proxy_ts():
 
     try:
         # Stream diretto senza cache per evitare freezing
-        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=10)
+        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(10, 30)) # Increased read timeout to 30s
         response.raise_for_status()
         
         def generate():
