@@ -46,7 +46,7 @@ docker run -d -p 7860:7860 --name tvproxy tvproxy
 
 ---
 
-## 🐧 Termux
+## 🐧 Termux (Dispositivi Android)
 
 ### ✅ Costruzione e Avvio
 
