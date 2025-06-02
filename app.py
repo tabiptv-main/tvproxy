@@ -2,6 +2,7 @@ from flask import Flask, request, Response
 import requests
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
+import traceback
 import os
 
 app = Flask(__name__)
@@ -41,11 +42,11 @@ def resolve_m3u8_link(url, headers=None):
     try:
         # Utilizza una sessione per gestire i cookie e i redirect
         with requests.Session() as session:
-            session.timeout = 5
+            # session.timeout = 5 # Impostare timeout individuali per ogni richiesta è più flessibile
             
             # Primo passo: Richiesta all'URL iniziale
             print(f"Passo 1: Richiesta a {url}")
-            response = session.get(url, headers=current_headers, allow_redirects=True, timeout=5)
+            response = session.get(url, headers=current_headers, allow_redirects=True, timeout=(5, 15)) # Timeout connessione 5s, lettura 15s
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
@@ -68,7 +69,7 @@ def resolve_m3u8_link(url, headers=None):
                 current_headers['Referer'] = referer_raw
                 current_headers['Origin'] = origin_raw
                 print(f"Passo 3 (Iframe): Richiesta a {url2}")
-                response = session.get(url2, headers=current_headers, timeout=5)
+                response = session.get(url2, headers=current_headers, timeout=(5, 15)) # Timeout connessione 5s, lettura 15s
                 response.raise_for_status()
                 iframe_response_text = response.text
                 print("Passo 3 (Iframe) completato.")
@@ -96,14 +97,14 @@ def resolve_m3u8_link(url, headers=None):
                 # Quinto passo (Iframe): Richiesta di autenticazione
                 auth_url = f'{auth_host}{channel_key}&ts={auth_ts}&rnd={auth_rnd}&sig={auth_sig}'
                 print(f"Passo 5 (Iframe): Richiesta di autenticazione a {auth_url}")
-                auth_response = session.get(auth_url, headers=current_headers, timeout=5)
+                auth_response = session.get(auth_url, headers=current_headers, timeout=(5, 15)) # Timeout connessione 5s, lettura 15s
                 auth_response.raise_for_status()
                 print("Passo 5 (Iframe) completato.")
 
                 # Sesto passo (Iframe): Richiesta di server lookup per ottenere la server_key
                 server_lookup_url = f"https://{urlparse(url2).netloc}{server_lookup}{channel_key}"
                 print(f"Passo 6 (Iframe): Richiesta server lookup a {server_lookup_url}")
-                server_lookup_response = session.get(server_lookup_url, headers=current_headers, timeout=5)
+                server_lookup_response = session.get(server_lookup_url, headers=current_headers, timeout=(5, 15)) # Timeout connessione 5s, lettura 15s
                 server_lookup_response.raise_for_status()
                 server_lookup_data = server_lookup_response.json()
                 print("Passo 6 (Iframe) completato.")
@@ -175,7 +176,7 @@ def proxy():
         server_ip = request.host
         
         # Scarica la lista M3U originale
-        response = requests.get(m3u_url, timeout=10)
+        response = requests.get(m3u_url, timeout=(10, 30)) # Timeout connessione 10s, lettura 30s
         response.raise_for_status()
         m3u_content = response.text
         
@@ -251,7 +252,7 @@ def proxy_m3u():
 
         # Fetchare il contenuto M3U8 effettivo dall'URL risolto
         print(f"Fetching M3U8 content from resolved URL: {resolved_url}")
-        m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=5)
+        m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=(10, 20)) # Timeout connessione 10s, lettura 20s
         m3u_response.raise_for_status()
         m3u_content = m3u_response.text
         final_url = m3u_response.url
@@ -335,7 +336,7 @@ def proxy_ts():
 
     try:
         # Stream diretto senza cache per evitare freezing
-        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(10, 30)) # Increased read timeout to 30s
+        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(10, 30)) # Timeout di connessione 10s, lettura 30s
         response.raise_for_status()
         
         def generate():
@@ -362,7 +363,7 @@ def proxy_key():
     }
 
     try:
-        response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=5)
+        response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=(5, 15)) # Timeout connessione 5s, lettura 15s
         response.raise_for_status()
         
         return Response(response.content, content_type="application/octet-stream")
