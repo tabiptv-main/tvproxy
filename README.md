@@ -46,6 +46,20 @@ docker run -d -p 7860:7860 --name tvproxy tvproxy
 
 ---
 
+## 🐧 Termux
+
+### ✅ Costruzione e Avvio
+
+```bash
+pkg install git python -y
+git clone https://github.com/nzo66/tvproxy.git
+cd tvproxy
+pip install -r requirements.txt'
+gunicorn app:app -w 4 -b 0.0.0.0:7860
+```
+
+---
+
 ## 🐍 Avvio con Python (Locale)
 
 ### ✅ Setup e Avvio
