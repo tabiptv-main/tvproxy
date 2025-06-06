@@ -55,7 +55,7 @@ pkg install git python -y
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 pip install -r requirements.txt'
-gunicorn app:app -w 4 -b 0.0.0.0:7860
+gunicorn app:app --bind 0.0.0.0:7860 --workers 4
 ```
 
 ---
@@ -73,7 +73,7 @@ cd tvproxy
 pip install -r requirements.txt
 
 # Avvia il server
-gunicorn app:app -w 4 -b 0.0.0.0:7860
+gunicorn app:app --bind 0.0.0.0:7860 --workers 4
 ```
 
 ---
