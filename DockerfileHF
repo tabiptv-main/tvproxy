@@ -17,10 +17,6 @@ RUN git clone https://github.com/nzo66/tvproxy .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Crea un utente non-root per sicurezza
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
-
 # Espone la porta 7860 per Flask/Gunicorn
 EXPOSE 7860
 
