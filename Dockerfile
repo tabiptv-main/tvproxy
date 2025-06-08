@@ -5,8 +5,9 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y \
     build-essential \
     libevent-dev \
-    ca-certificates \
+    ca-certificates \ 
     && rm -rf /var/lib/apt/lists/*
+
 
 # Imposta la directory di lavoro
 WORKDIR /app
