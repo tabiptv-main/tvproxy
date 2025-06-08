@@ -1,56 +1,10 @@
 from flask import Flask, request, Response
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
 import os
-import certifi  # <-- Import aggiunto
 
 app = Flask(__name__)
-
-# Sessione requests ottimizzata per alta concorrenza
-session = requests.Session()
-retry_strategy = Retry(
-    total=3,
-    backoff_factor=0.1,
-    status_forcelist=[429, 500, 502, 503, 504]
-)
-adapter = HTTPAdapter(
-    pool_connections=20,
-    pool_maxsize=100,
-    max_retries=retry_strategy
-)
-session.mount("http://", adapter)
-session.mount("https://", adapter)
-
-@app.route('/')
-def home():
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Proxy Server - High Performance</title>
-        <style>
-            body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-            h1 { color: #28a745; }
-            .status { background: #d4edda; padding: 20px; border-radius: 5px; display: inline-block; }
-            .info { background: #cce5ff; padding: 15px; border-radius: 5px; margin-top: 20px; display: inline-block; }
-        </style>
-    </head>
-    <body>
-        <div class="status">
-            <h1>🟢 Proxy Attivo - High Performance</h1>
-            <p>Server in funzione sulla porta 7860</p>
-        </div>
-        <div class="info">
-            <h3>📊 Capacità</h3>
-            <p>Ottimizzato per 100+ client simultanei</p>
-            <p>Worker asincroni con gevent</p>
-        </div>
-    </body>
-    </html>
-    """
 
 def detect_m3u_type(content):
     """ Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS) """
@@ -75,30 +29,34 @@ def proxy():
         return "Errore: Parametro 'url' mancante", 400
 
     try:
+        # Ottieni l'IP del server
         server_ip = request.host
-        response = session.get(m3u_url, timeout=(10, 30), verify=certifi.where())
+        
+        # Scarica la lista M3U originale
+        response = requests.get(m3u_url, timeout=(10, 30)) # Timeout connessione 10s, lettura 30s
         response.raise_for_status()
         m3u_content = response.text
-
+        
+        # Modifica solo le righe che contengono URL (non iniziano con #)
         modified_lines = []
         for line in m3u_content.splitlines():
             line = line.strip()
             if line and not line.startswith('#'):
+                # Per tutti i link, usa il proxy normale
                 modified_line = f"http://{server_ip}/proxy/m3u?url={line}"
                 modified_lines.append(modified_line)
             else:
+                # Mantieni invariate le righe di metadati
                 modified_lines.append(line)
-
+        
         modified_content = '\n'.join(modified_lines)
+
+        # Estrai il nome del file dall'URL originale
         parsed_m3u_url = urlparse(m3u_url)
         original_filename = os.path.basename(parsed_m3u_url.path)
-
-        return Response(
-            modified_content,
-            content_type="application/vnd.apple.mpegurl",
-            headers={'Content-Disposition': f'attachment; filename="{original_filename}"'}
-        )
-
+        
+        return Response(modified_content, content_type="application/vnd.apple.mpegurl", headers={'Content-Disposition': f'attachment; filename="{original_filename}"'})
+        
     except requests.RequestException as e:
         return f"Errore durante il download della lista M3U: {str(e)}", 500
     except Exception as e:
@@ -124,9 +82,7 @@ def proxy_m3u():
     }}
 
     try:
-        response = session.get(
-            m3u_url, headers=headers, allow_redirects=True, timeout=(10, 60), verify=certifi.where()
-        )
+        response = requests.get(m3u_url, headers=headers, allow_redirects=True)
         response.raise_for_status()
         final_url = response.url
         m3u_content = response.text
@@ -160,7 +116,7 @@ def proxy_m3u():
 
 @app.route('/proxy/ts')
 def proxy_ts():
-    """ Proxy per segmenti .TS con headers personalizzati e streaming ottimizzato """
+    """ Proxy per segmenti .TS con headers personalizzati """
     ts_url = request.args.get('url', '').strip()
     if not ts_url:
         return "Errore: Parametro 'url' mancante", 400
@@ -172,35 +128,10 @@ def proxy_ts():
     }
 
     try:
-        response = session.get(
-            ts_url,
-            headers=headers,
-            stream=True,
-            allow_redirects=True,
-            timeout=(5, 30),
-            verify=certifi.where()
-        )
+        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True)
         response.raise_for_status()
-
-        def generate():
-            try:
-                for chunk in response.iter_content(chunk_size=16384):
-                    if chunk:
-                        yield chunk
-            except Exception:
-                pass
-            finally:
-                response.close()
-
-        return Response(
-            generate(),
-            content_type="video/mp2t",
-            headers={
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive'
-            }
-        )
-
+        return Response(response.iter_content(chunk_size=1024), content_type="video/mp2t")
+    
     except requests.RequestException as e:
         return f"Errore durante il download del segmento TS: {str(e)}", 500
 
@@ -218,24 +149,12 @@ def proxy_key():
     }
 
     try:
-        response = session.get(
-            key_url, headers=headers, allow_redirects=True, timeout=(10, 30), verify=certifi.where()
-        )
+        response = requests.get(key_url, headers=headers, allow_redirects=True)
         response.raise_for_status()
-        return Response(
-            response.content,
-            content_type="application/octet-stream",
-            headers={'Cache-Control': 'max-age=3600'}
-        )
-
+        return Response(response.content, content_type="application/octet-stream")
+    
     except requests.RequestException as e:
         return f"Errore durante il download della chiave AES-128: {str(e)}", 500
 
-@app.route('/health')
-def health():
-    """Endpoint per health check"""
-    return {"status": "healthy", "workers": "gevent", "capacity": "100+ clients"}, 200
-
 if __name__ == '__main__':
-    print("Proxy Attivo - Server High Performance avviato sulla porta 7860")
     app.run(host="0.0.0.0", port=7860, debug=False)
