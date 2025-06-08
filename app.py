@@ -186,7 +186,7 @@ def proxy_ts():
 
         def generate():
             try:
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in response.iter_content(chunk_size=16384):
                     if chunk:
                         yield chunk
             except Exception:
