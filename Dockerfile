@@ -21,10 +21,10 @@ EXPOSE 7860
 # Comando per avviare il server Flask con Gunicorn e 4 worker
 CMD ["gunicorn", "app:app", \
      "-w", "4", \
+     "--worker-class", "gevent", \
+     "--worker-connections", "100", \
      "-b", "0.0.0.0:7860", \
      "--timeout", "120", \
      "--keep-alive", "5", \
      "--max-requests", "1000", \
-     "--max-requests-jitter", "100", \
-     "--worker-class", "sync", \
-     "--worker-connections", "1000"]
+     "--max-requests-jitter", "100"]
