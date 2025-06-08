@@ -51,10 +51,20 @@ docker run -d -p 7860:7860 tvproxy
 ### ✅ Costruzione e Avvio
 
 ```bash
+# Installa git
 pkg install git python -y
+
+# Clona il repository
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
+
+# Installa le dipendenze
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+pip install -U uvicorn typing-extensions fastapi
+
+# Avvia il server
 uvicorn app:app --host 0.0.0.0 --port 7860 --workers 4
 ```
 
@@ -70,6 +80,8 @@ git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 
 # Installa le dipendenze
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 
 # Avvia il server
