@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 from flask import Flask, request, Response
 import requests
 from requests.adapters import HTTPAdapter
@@ -5,8 +7,6 @@ from urllib3.util.retry import Retry
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
 import os
-from gevent import monkey
-monkey.patch_all()  # Patch per compatibilità gevent
 import certifi  # <-- Import aggiunto
 
 app = Flask(__name__)
