@@ -55,7 +55,7 @@ pkg install git python -y
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 pip install -r requirements.txt
-uvicorn proxy_async:app --host 0.0.0.0 --port 7860 --workers 4
+uvicorn app:app --host 0.0.0.0 --port 7860 --workers 4
 ```
 
 ---
@@ -73,7 +73,7 @@ cd tvproxy
 pip install -r requirements.txt
 
 # Avvia il server
-uvicorn proxy_async:app --host 0.0.0.0 --port 7860 --workers 4
+uvicorn app:app --host 0.0.0.0 --port 7860 --workers 4
 ```
 
 ---
