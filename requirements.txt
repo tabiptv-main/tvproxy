@@ -4,3 +4,4 @@ gunicorn
 gevent
 greenlet
 urllib3
+certifi
