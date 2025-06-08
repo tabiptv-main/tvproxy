@@ -41,7 +41,7 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 docker build -t tvproxy .
-docker run -d -p 7860:7860 tvproxy
+docker run -d -p 7860:7860 --name tvproxy tvproxy
 ```
 
 ---
@@ -51,21 +51,11 @@ docker run -d -p 7860:7860 tvproxy
 ### ✅ Costruzione e Avvio
 
 ```bash
-# Installa git
 pkg install git python -y
-
-# Clona il repository
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
-
-# Installa le dipendenze
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pip install -U uvicorn typing-extensions fastapi
-
-# Avvia il server
-uvicorn app:app --host 0.0.0.0 --port 7860 --workers 4
+pip install -r requirements.txt'
+gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:7860 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
 ```
 
 ---
@@ -80,12 +70,10 @@ git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 
 # Installa le dipendenze
-python -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
 
 # Avvia il server
-uvicorn app:app --host 0.0.0.0 --port 7860 --workers 4
+gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:7860 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
 ```
 
 ---
