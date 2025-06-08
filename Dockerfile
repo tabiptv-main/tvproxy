@@ -23,13 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Espone la porta usata dall'app
 EXPOSE 7860
 
-# Comando ottimizzato per locale: worker asincroni e log in console
-CMD ["gunicorn", "app:app",
-     "-w", "4",
-     "-b", "0.0.0.0:7860",
-     "--timeout", "300",
-     "--keep-alive", "30",
-     "--max-requests", "2000",
-     "--max-requests-jitter", "200"]
+CMD ["gunicorn", "app:app", "-w", "4", "-k", "gevent", "--worker-connections", "1000", "-b", "0.0.0.0:7860", "--timeout", "300", "--keep-alive", "30", "--max-requests", "2000", "--max-requests-jitter", "200", "--preload"]
 
 
