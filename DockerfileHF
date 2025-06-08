@@ -1,32 +1,24 @@
-# Usa l'immagine base di Python
-FROM python:3.12-slim
+FROM python:3.11-slim
 
-# Installa git e certificati SSL
-RUN apt-get update && apt-get install -y \
-    git \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Evita output bufferato
+ENV PYTHONUNBUFFERED=1
 
-# Imposta la directory di lavoro
+# Crea cartella di lavoro
 WORKDIR /app
 
-# Clona il repository GitHub
-RUN git clone https://github.com/nzo66/tvproxy .
+# Installa wget e pip
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+
+# Scarica i file dal tuo repository GitHub (modifica gli URL con quelli veri!)
+RUN wget -O app.py https://raw.githubusercontent.com/nzo66/tvproxy/main/app.py && \
+    wget -O requirements.txt https://raw.githubusercontent.com/nzo66/tvproxy/main/requirements.txt
 
 # Installa le dipendenze
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Espone la porta 7860 per Flask/Gunicorn
+# Hugging Face Spaces richiede porta 7860
 EXPOSE 7860
 
-# Comando ottimizzato per avviare il server
-CMD ["gunicorn", "app:app", \
-     "-w", "4", \
-     "--worker-class", "gevent", \
-     "--worker-connections", "100", \
-     "-b", "0.0.0.0:7860", \
-     "--timeout", "120", \
-     "--keep-alive", "5", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "100"]
+# Avvia il server FastAPI
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
