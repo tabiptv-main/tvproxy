@@ -7,6 +7,7 @@ import re
 import os
 from gevent import monkey
 monkey.patch_all()  # Patch per compatibilità gevent
+import certifi  # <-- Import aggiunto
 
 app = Flask(__name__)
 
@@ -77,7 +78,7 @@ def proxy():
 
     try:
         server_ip = request.host
-        response = session.get(m3u_url, timeout=(10, 30))
+        response = session.get(m3u_url, timeout=(10, 30), verify=certifi.where())
         response.raise_for_status()
         m3u_content = response.text
 
@@ -125,7 +126,9 @@ def proxy_m3u():
     }}
 
     try:
-        response = session.get(m3u_url, headers=headers, allow_redirects=True, timeout=(10, 60))
+        response = session.get(
+            m3u_url, headers=headers, allow_redirects=True, timeout=(10, 60), verify=certifi.where()
+        )
         response.raise_for_status()
         final_url = response.url
         m3u_content = response.text
@@ -176,7 +179,8 @@ def proxy_ts():
             headers=headers,
             stream=True,
             allow_redirects=True,
-            timeout=(5, 30)
+            timeout=(5, 30),
+            verify=certifi.where()
         )
         response.raise_for_status()
 
@@ -216,7 +220,9 @@ def proxy_key():
     }
 
     try:
-        response = session.get(key_url, headers=headers, allow_redirects=True, timeout=(10, 30))
+        response = session.get(
+            key_url, headers=headers, allow_redirects=True, timeout=(10, 30), verify=certifi.where()
+        )
         response.raise_for_status()
         return Response(
             response.content,
