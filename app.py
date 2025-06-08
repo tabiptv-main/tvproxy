@@ -6,6 +6,28 @@ import os
 
 app = Flask(__name__)
 
+@app.route('/')
+def home():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Proxy Server</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+            h1 { color: #28a745; }
+            .status { background: #d4edda; padding: 20px; border-radius: 5px; display: inline-block; }
+        </style>
+    </head>
+    <body>
+        <div class="status">
+            <h1>🟢 Proxy Attivo</h1>
+            <p>Server in funzione sulla porta 7860</p>
+        </div>
+    </body>
+    </html>
+    """
+
 def detect_m3u_type(content):
     """ Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS) """
     if "#EXTM3U" in content and "#EXTINF" in content:
@@ -157,4 +179,5 @@ def proxy_key():
         return f"Errore durante il download della chiave AES-128: {str(e)}", 500
 
 if __name__ == '__main__':
+    print("Proxy Attivo - Server avviato sulla porta 7860")
     app.run(host="0.0.0.0", port=7860, debug=False)
