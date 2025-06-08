@@ -25,14 +25,13 @@ EXPOSE 7860
 
 # Comando ottimizzato per locale: worker asincroni e log in console
 CMD ["gunicorn", "app:app", \
-     "-w", "8", \
+     "-w", "4", \
+     "-k", "gevent", \
+     "--worker-connections", "1000", \
      "-b", "0.0.0.0:7860", \
      "--timeout", "300", \
      "--keep-alive", "30", \
      "--max-requests", "2000", \
      "--max-requests-jitter", "200", \
-     "--worker-class", "gevent", \
-     "--worker-connections", "200", \
-     "--preload", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+     "--preload"]
+
