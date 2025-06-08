@@ -1,8 +1,3 @@
-Flask
+flask
 requests
 gunicorn
-gevent
-greenlet
-urllib3
-certifi
-eventlet
