@@ -2,7 +2,7 @@ from flask import Flask, request, Response
 import requests
 from urllib.parse import urlparse, urljoin, quote, unquote
 import re
-import traceback
+import json
 import os
 
 app = Flask(__name__)
@@ -194,16 +194,39 @@ def proxy():
         response.raise_for_status()
         m3u_content = response.text
         
-        # Modifica solo le righe che contengono URL (non iniziano con #)
         modified_lines = []
+        exthttp_headers_query_params = "" # Stringa per conservare gli header da #EXTHTTP
+
         for line in m3u_content.splitlines():
             line = line.strip()
-            if line and not line.startswith('#'):
-                # Per tutti i link, usa il proxy normale
-                modified_line = f"http://{server_ip}/proxy/m3u?url={line}"
+            if line.startswith('#EXTHTTP:'):
+                try:
+                    # Estrai la parte JSON dalla riga #EXTHTTP:
+                    json_str = line.split(':', 1)[1].strip()
+                    headers_dict = json.loads(json_str)
+                    
+                    # Costruisci la stringa dei parametri di query per gli header
+                    temp_params = []
+                    for key, value in headers_dict.items():
+                        # URL-encode sia la chiave (dopo h_) che il valore
+                        temp_params.append(f"h_{quote(key)}={quote(str(value))}")
+                    
+                    if temp_params:
+                        exthttp_headers_query_params = "&" + "&".join(temp_params)
+                    else:
+                        exthttp_headers_query_params = ""
+                except Exception as e:
+                    print(f"Errore nel parsing di #EXTHTTP '{line}': {e}")
+                    exthttp_headers_query_params = "" # Resetta in caso di errore
+                modified_lines.append(line) # Mantieni la riga #EXTHTTP originale
+            elif line and not line.startswith('#'):
+                # Questa è una riga di URL del flusso
+                # Applica gli header #EXTHTTP se presenti e poi resettali
+                modified_line = f"http://{server_ip}/proxy/m3u?url={quote(line)}{exthttp_headers_query_params}"
                 modified_lines.append(modified_line)
+                exthttp_headers_query_params = "" # Resetta gli header dopo averli usati
             else:
-                # Mantieni invariate le righe di metadati
+                # Mantieni invariate le altre righe di metadati o righe vuote
                 modified_lines.append(line)
         
         modified_content = '\n'.join(modified_lines)
