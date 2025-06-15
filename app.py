@@ -221,10 +221,15 @@ def proxy():
                 modified_lines.append(line) # Mantieni la riga #EXTHTTP originale
             elif line and not line.startswith('#'):
                 # Questa è una riga di URL del flusso
-                # Applica gli header #EXTHTTP se presenti e poi resettali
-                modified_line = f"http://{server_ip}/proxy/m3u?url={quote(line)}{exthttp_headers_query_params}"
-                modified_lines.append(modified_line)
-                exthttp_headers_query_params = "" # Resetta gli header dopo averli usati
+                # Verifica se è un URL di Pluto.tv e saltalo
+                if 'pluto.tv' in line.lower():
+                    modified_lines.append(line)  # Mantieni l'URL originale senza proxy
+                    exthttp_headers_query_params = ""  # Resetta gli header
+                else:
+                    # Applica gli header #EXTHTTP se presenti e poi resettali
+                    modified_line = f"http://{server_ip}/proxy/m3u?url={quote(line)}{exthttp_headers_query_params}"
+                    modified_lines.append(modified_line)
+                    exthttp_headers_query_params = ""  # Resetta gli header dopo averli usati
             else:
                 # Mantieni invariate le altre righe di metadati o righe vuote
                 modified_lines.append(line)
