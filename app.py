@@ -24,28 +24,63 @@ def replace_key_uri(line, headers_query):
 
 def resolve_m3u8_link(url, headers=None):
     """
-    Tenta di risolvere un URL M3U8.
-    Prova prima la logica specifica per iframe (tipo Daddylive), inclusa la lookup della server_key.
-    Se fallisce, verifica se l'URL iniziale era un M3U8 diretto e lo restituisce.
+    Tenta di risolvere un URL M3U8 supportando sia URL puliti che URL con header concatenati.
+    Gestisce automaticamente l'estrazione degli header dai parametri dell'URL.
     """
     if not url:
         print("Errore: URL non fornito.")
         return {"resolved_url": None, "headers": {}}
 
     print(f"Tentativo di risoluzione URL: {url}")
-    # Utilizza gli header forniti, altrimenti usa un User-Agent di default
-    current_headers = headers if headers else {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0+Safari/537.36'}
+    
+    # Inizializza gli header di default
+    current_headers = headers if headers else {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+    }
+    
+    # **SUPPORTO PER ENTRAMBE LE VERSIONI**
+    clean_url = url
+    extracted_headers = {}
+    
+    # Verifica se l'URL contiene parametri header concatenati
+    if '&h_' in url:
+        print("Rilevati parametri header nell'URL - Estrazione in corso...")
+        
+        # Separa l'URL base dai parametri degli header
+        url_parts = url.split('&h_', 1)
+        clean_url = url_parts[0]
+        header_params = '&h_' + url_parts[1]
+        
+        # Estrai gli header dai parametri
+        for param in header_params.split('&'):
+            if param.startswith('h_'):
+                try:
+                    key_value = param[2:].split('=', 1)
+                    if len(key_value) == 2:
+                        key = unquote(key_value[0]).replace('_', '-')
+                        value = unquote(key_value[1])
+                        extracted_headers[key] = value
+                        print(f"Header estratto: {key} = {value}")
+                except Exception as e:
+                    print(f"Errore nell'estrazione dell'header {param}: {e}")
+        
+        # Combina gli header estratti con quelli esistenti
+        current_headers.update(extracted_headers)
+        print(f"URL pulito: {clean_url}")
+        print(f"Header finali: {current_headers}")
+    else:
+        print("URL pulito rilevato - Nessuna estrazione header necessaria")
 
     initial_response_text = None
     final_url_after_redirects = None
 
     # Verifica se è un URL di vavoo.to
-    is_vavoo = "vavoo.to" in url.lower()
+    is_vavoo = "vavoo.to" in clean_url.lower()
 
     try:
         with requests.Session() as session:
-            print(f"Passo 1: Richiesta a {url}")
-            response = session.get(url, headers=current_headers, allow_redirects=True, timeout=(5, 15))
+            print(f"Passo 1: Richiesta a {clean_url}")
+            response = session.get(clean_url, headers=current_headers, allow_redirects=True, timeout=(5, 15))
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
@@ -60,9 +95,9 @@ def resolve_m3u8_link(url, headers=None):
                     }
                 else:
                     # Se non è un M3U8 diretto, restituisci l'URL originale per vavoo
-                    print(f"URL vavoo.to non è un M3U8 diretto: {url}")
+                    print(f"URL vavoo.to non è un M3U8 diretto: {clean_url}")
                     return {
-                        "resolved_url": url,
+                        "resolved_url": clean_url,
                         "headers": current_headers
                     }
 
@@ -167,16 +202,16 @@ def resolve_m3u8_link(url, headers=None):
                 else:
                     print("Fallback fallito: La risposta iniziale non era un M3U8 diretto.")
                     return {
-                        "resolved_url": url,
+                        "resolved_url": clean_url,
                         "headers": current_headers
                     }
 
     except requests.exceptions.RequestException as e:
         print(f"Errore durante la richiesta HTTP iniziale: {e}")
-        return {"resolved_url": url, "headers": current_headers}
+        return {"resolved_url": clean_url, "headers": current_headers}
     except Exception as e:
         print(f"Errore generico durante la risoluzione: {e}")
-        return {"resolved_url": url, "headers": current_headers}
+        return {"resolved_url": clean_url, "headers": current_headers}
 
 @app.route('/proxy')
 def proxy():
@@ -249,7 +284,7 @@ def proxy():
 
 @app.route('/proxy/m3u')
 def proxy_m3u():
-    """Proxy per file M3U e M3U8 con supporto per redirezioni e header personalizzati"""
+    """Proxy per file M3U e M3U8 con supporto per entrambe le versioni di URL"""
     m3u_url = request.args.get('url', '').strip()
     if not m3u_url:
         return "Errore: Parametro 'url' mancante", 400
@@ -260,12 +295,14 @@ def proxy_m3u():
         "Origin": "https://vavoo.to"
     }
 
-    # Estrai gli header dalla richiesta, sovrascrivendo i default
+    # Estrai gli header dalla richiesta (versione parametri query)
     request_headers = {
         unquote(key[2:]).replace("_", "-"): unquote(value).strip()
         for key, value in request.args.items()
         if key.lower().startswith("h_")
     }
+    
+    # Combina header di default con quelli della richiesta
     headers = {**default_headers, **request_headers}
 
     # --- Logica per trasformare l'URL se necessario ---
