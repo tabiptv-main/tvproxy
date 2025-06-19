@@ -309,7 +309,7 @@ def proxy_m3u():
     processed_url = m3u_url
     
     # Trasforma /stream/ in /embed/ per Daddylive
-    if '/stream/stream-' in m3u_url:
+    if '/stream/stream-' in m3u_url and 'thedaddy.click' in m3u_url:
         processed_url = m3u_url.replace('/stream/stream-', '/embed/stream-')
         print(f"URL {m3u_url} trasformato da /stream/ a /embed/: {processed_url}")
     
