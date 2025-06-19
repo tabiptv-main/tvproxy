@@ -309,7 +309,7 @@ def proxy_m3u():
     processed_url = m3u_url
     
     # Trasforma /stream/ in /embed/ per Daddylive
-    if '/stream/stream-' in m3u_url and 'daddylive.dad' in m3u_url:
+    if '/stream/stream-' in m3u_url:
         processed_url = m3u_url.replace('/stream/stream-', '/embed/stream-')
         print(f"URL {m3u_url} trasformato da /stream/ a /embed/: {processed_url}")
     
@@ -317,7 +317,7 @@ def proxy_m3u():
 
     if match_premium_m3u8:
         channel_number = match_premium_m3u8.group(1)
-        transformed_url = f"https://daddylive.dad/embed/stream-{channel_number}.php"
+        transformed_url = f"https://thedaddy.click/embed/stream-{channel_number}.php"
         print(f"URL {m3u_url} corrisponde al pattern premium. Trasformato in: {transformed_url}")
         processed_url = transformed_url
     else:
