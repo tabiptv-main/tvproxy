@@ -82,6 +82,8 @@ def resolve_m3u8_link(url, headers=None):
             print(f"Passo 1: Richiesta a {clean_url}")
             response = session.get(clean_url, headers=current_headers, allow_redirects=True, timeout=(5, 15))
             response.raise_for_status()
+            # Applica la codifica corretta
+            response.encoding = response.apparent_encoding or 'utf-8'
             initial_response_text = response.text
             final_url_after_redirects = response.url
             print(f"Passo 1 completato. URL finale dopo redirect: {final_url_after_redirects}")
@@ -120,9 +122,12 @@ def resolve_m3u8_link(url, headers=None):
                 print(f"Passo 3 (Iframe): Richiesta a {url2}")
                 response = session.get(url2, headers=current_headers, timeout=(5, 15))
                 response.raise_for_status()
+                # Applica la codifica corretta
+                response.encoding = response.apparent_encoding or 'utf-8'
                 iframe_response_text = response.text
                 print("Passo 3 (Iframe) completato.")
 
+                # ... resto del codice iframe rimane uguale ...
                 # Quarto passo (Iframe): Estrai parametri dinamici dall'iframe response
                 channel_key_match = re.search(r'(?s) channelKey = \"([^\"]*)"', iframe_response_text)
                 auth_ts_match = re.search(r'(?s) authTs\s*= \"([^\"]*)"', iframe_response_text)
@@ -227,6 +232,8 @@ def proxy():
         # Scarica la lista M3U originale
         response = requests.get(m3u_url, timeout=(10, 30)) # Timeout connessione 10s, lettura 30s
         response.raise_for_status()
+        # Applica la codifica corretta
+        response.encoding = response.apparent_encoding or 'utf-8'
         m3u_content = response.text
         
         modified_lines = []
@@ -275,7 +282,7 @@ def proxy():
         parsed_m3u_url = urlparse(m3u_url)
         original_filename = os.path.basename(parsed_m3u_url.path)
         
-        return Response(modified_content, content_type="application/vnd.apple.mpegurl", headers={'Content-Disposition': f'attachment; filename="{original_filename}"'})
+        return Response(modified_content, content_type="application/vnd.apple.mpegurl; charset=utf-8", headers={'Content-Disposition': f'attachment; filename="{original_filename}"'})
         
     except requests.RequestException as e:
         return f"Errore durante il download della lista M3U: {str(e)}", 500
@@ -339,6 +346,8 @@ def proxy_m3u():
         print(f"Fetching M3U8 content from resolved URL: {resolved_url}")
         m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=(10, 20)) # Timeout connessione 10s, lettura 20s
         m3u_response.raise_for_status()
+        # Applica la codifica corretta
+        m3u_response.encoding = m3u_response.apparent_encoding or 'utf-8'
         m3u_content = m3u_response.text
         final_url = m3u_response.url
 
@@ -346,7 +355,7 @@ def proxy_m3u():
         file_type = detect_m3u_type(m3u_content)
 
         if file_type == "m3u":
-            return Response(m3u_content, content_type="application/vnd.apple.mpegurl")
+            return Response(m3u_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
 
         # Processa contenuto M3U8
         parsed_url = urlparse(final_url)
@@ -366,7 +375,7 @@ def proxy_m3u():
             modified_m3u8.append(line)
 
         modified_m3u8_content = "\n".join(modified_m3u8)
-        return Response(modified_m3u8_content, content_type="application/vnd.apple.mpegurl")
+        return Response(modified_m3u8_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
 
     except requests.RequestException as e:
         print(f"Errore durante il download o la risoluzione del file: {str(e)}")
@@ -400,7 +409,7 @@ def proxy_resolve():
             f"#EXTM3U\n"
             f"#EXTINF:-1,Canale Risolto\n"
             f"/proxy/m3u?url={quote(result['resolved_url'])}&{headers_query}",
-            content_type="application/vnd.apple.mpegurl"
+            content_type="application/vnd.apple.mpegurl; charset=utf-8"
         )
         
     except Exception as e:
@@ -454,13 +463,7 @@ def proxy_key():
         return Response(response.content, content_type="application/octet-stream")
     
     except requests.RequestException as e:
-        return f"Errore durante il download della chiave AES-128: {str(e)}", 500
-
-@app.route('/')
-def index():
-    """Pagina principale che mostra un messaggio di benvenuto"""
-    return "Proxy started!"
+        return f"Errore durante il download della chiave: {str(e)}", 500
 
 if __name__ == '__main__':
-    print("Proxy started!")
     app.run(host="0.0.0.0", port=7860, debug=False)
