@@ -245,16 +245,17 @@ def proxy():
                     json_str = line.split(':', 1)[1].strip()
                     headers_dict = json.loads(json_str)
                     
-                    # Costruisci la stringa dei parametri di query per gli header
+                    # Costruisci la stringa dei parametri di query per gli header con doppia codifica
                     temp_params = []
                     for key, value in headers_dict.items():
-                        # URL-encode sia la chiave (dopo h_) che il valore usando quote con safe=''
-                        encoded_key = quote(key, safe='')
-                        encoded_value = quote(str(value), safe='')
+                        # Doppia codifica: prima codifica normale, poi codifica di nuovo
+                        encoded_key = quote(quote(key))
+                        encoded_value = quote(quote(str(value)))
                         temp_params.append(f"h_{encoded_key}={encoded_value}")
                     
                     if temp_params:
-                        exthttp_headers_query_params = "&" + "&".join(temp_params)
+                        # Usa %26 invece di & come separatore per gli header
+                        exthttp_headers_query_params = "%26" + "%26".join(temp_params)
                     else:
                         exthttp_headers_query_params = ""
                 except Exception as e:
@@ -269,7 +270,9 @@ def proxy():
                     exthttp_headers_query_params = ""  # Resetta gli header
                 else:
                     # Applica gli header #EXTHTTP se presenti e poi resettali
-                    modified_line = f"http://{server_ip}/proxy/m3u?url={quote(line, safe='')}{exthttp_headers_query_params}"
+                    # Assicurati che l'URL sia completamente codificato, inclusi gli slash
+                    encoded_line = quote(line, safe='')
+                    modified_line = f"http://{server_ip}/proxy/m3u?url={encoded_line}{exthttp_headers_query_params}"
                     modified_lines.append(modified_line)
                     exthttp_headers_query_params = ""  # Resetta gli header dopo averli usati
             else:
