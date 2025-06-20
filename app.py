@@ -41,6 +41,15 @@ def resolve_m3u8_link(url, headers=None):
     # **SUPPORTO PER ENTRAMBE LE VERSIONI**
     clean_url = url
     extracted_headers = {}
+
+    # Define newkso.ru specific sites and headers
+    daddy_php_sites = [
+        "https://new.newkso.ru/wind/",
+        "https://new.newkso.ru/ddy6/",
+        "https://new.newkso.ru/zeko/",
+        "https://new.newkso.ru/nfs/",
+        "https://new.newkso.ru/dokko1/",
+    ]
     
     # Verifica se l'URL contiene parametri header concatenati
     if '&h_' in url or '%26h_' in url:
@@ -82,11 +91,59 @@ def resolve_m3u8_link(url, headers=None):
     else:
         print("URL pulito rilevato - Nessuna estrazione header necessaria")
 
+    # New logic for thedaddy.click .php URLs
+    if clean_url.endswith('.php'):
+        print(f"Rilevato URL .php {clean_url}")
+        channel_id_match = re.search(r'stream-(\d+)\.php', clean_url)
+        if channel_id_match:
+            channel_id = channel_id_match.group(1)
+            print(f"Channel ID estratto: {channel_id}")
+
+            newkso_headers_for_php_resolution = {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+                'Referer': 'https://forcedtoplay.xyz/',
+                'Origin': 'https://forcedtoplay.xyz/'
+            }
+
+            # Handle Tennis Channels (ID starts with 15 and length 4)
+            if channel_id.startswith("15") and len(channel_id) == 4:
+                tennis_suffix = channel_id[2:]
+                folder_name = f"wikiten{tennis_suffix}"
+                test_url = f"https://new.newkso.ru/wikihz/{folder_name}/mono.m3u8"
+                print(f"Tentativo canale Tennis: {test_url}")
+                try:
+                    response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=2.5, allow_redirects=True)
+                    if response.status_code == 200:
+                        print(f"Stream Tennis trovato: {test_url}")
+                        return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
+                except requests.RequestException as e:
+                    print(f"Errore HEAD per Tennis stream {test_url}: {e}")
+            
+            # Handle Other Daddy Channels
+            else:
+                folder_name = f"premium{channel_id}"
+                for site in daddy_php_sites:
+                    test_url = f"{site}{folder_name}/mono.m3u8"
+                    print(f"Tentativo canale Daddy: {test_url}")
+                    try:
+                        response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=2.5, allow_redirects=True)
+                        if response.status_code == 200:
+                            print(f"Stream Daddy trovato: {test_url}")
+                            return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
+                    except requests.RequestException as e:
+                        print(f"Errore HEAD per Daddy stream {test_url}: {e}")
+            
+            print(f"Nessuno stream diretto .m3u8 trovato nei siti newkso.ru per {clean_url}. Si procederà con la logica di fallback se applicabile.")
+            # If no specific newkso.ru stream is found for the .php URL, 
+            # we will let it fall through to the generic M3U8 resolution logic below.
+            # The generic logic will attempt to fetch clean_url (the .php URL).
+            # If that .php page itself returns M3U8 content, it will be processed.
+            # Otherwise, it will likely be treated as non-M3U8 content by proxy_m3u.
+
     initial_response_text = None
     final_url_after_redirects = None
 
-    # Verifica se è un URL di vavoo.to
-    is_vavoo = "vavoo.to" in clean_url.lower()
+    # La logica iframe è stata rimossa come richiesto.
 
     try:
         with requests.Session() as session:
@@ -97,128 +154,19 @@ def resolve_m3u8_link(url, headers=None):
             final_url_after_redirects = response.url
             print(f"Passo 1 completato. URL finale dopo redirect: {final_url_after_redirects}")
 
-            # Se è un URL di vavoo.to, salta la logica dell'iframe
-            if is_vavoo:
-                if initial_response_text and initial_response_text.strip().startswith('#EXTM3U'):
-                    return {
-                        "resolved_url": final_url_after_redirects,
-                        "headers": current_headers
-                    }
-                else:
-                    # Se non è un M3U8 diretto, restituisci l'URL originale per vavoo
-                    print(f"URL vavoo.to non è un M3U8 diretto: {clean_url}")
-                    return {
-                        "resolved_url": clean_url,
-                        "headers": current_headers
-                    }
-
-            # Prova la logica dell'iframe per gli altri URL
-            print("Tentativo con logica iframe...")
-            try:
-                # Secondo passo (Iframe): Trova l'iframe src nella risposta iniziale
-                iframes = re.findall(r'iframe src="([^"]+)"', initial_response_text)
-                if not iframes:
-                    raise ValueError("Nessun iframe src trovato.")
-
-                url2 = iframes[0]
-                print(f"Passo 2 (Iframe): Trovato iframe URL: {url2}")
-
-                # Terzo passo (Iframe): Richiesta all'URL dell'iframe
-                referer_raw = urlparse(url2).scheme + "://" + urlparse(url2).netloc + "/"
-                origin_raw = urlparse(url2).scheme + "://" + urlparse(url2).netloc
-                current_headers['Referer'] = referer_raw
-                current_headers['Origin'] = origin_raw
-                print(f"Passo 3 (Iframe): Richiesta a {url2}")
-                response = session.get(url2, headers=current_headers, timeout=(5, 15))
-                response.raise_for_status()
-                # Applica la codifica corretta
-                response.encoding = response.apparent_encoding or 'utf-8'
-                iframe_response_text = response.text
-                print("Passo 3 (Iframe) completato.")
-
-                # ... resto del codice iframe rimane uguale ...
-                # Quarto passo (Iframe): Estrai parametri dinamici dall'iframe response
-                channel_key_match = re.search(r'(?s) channelKey = \"([^\"]*)"', iframe_response_text)
-                auth_ts_match = re.search(r'(?s) authTs\s*= \"([^\"]*)"', iframe_response_text)
-                auth_rnd_match = re.search(r'(?s) authRnd\s*= \"([^\"]*)"', iframe_response_text)
-                auth_sig_match = re.search(r'(?s) authSig\s*= \"([^\"]*)"', iframe_response_text)
-                auth_host_match = re.search(r'\}\s*fetchWithRetry\(\s*\'([^\']*)\'', iframe_response_text)
-                server_lookup_match = re.search(r'n fetchWithRetry\(\s*\'([^\']*)\'', iframe_response_text)
-
-                if not all([channel_key_match, auth_ts_match, auth_rnd_match, auth_sig_match, auth_host_match, server_lookup_match]):
-                    raise ValueError("Impossibile estrarre tutti i parametri dinamici dall'iframe response.")
-                
-                channel_key = channel_key_match.group(1)
-                auth_ts = auth_ts_match.group(1)
-                auth_rnd = auth_rnd_match.group(1)
-                auth_sig = quote(auth_sig_match.group(1))
-                auth_host = auth_host_match.group(1)
-                server_lookup = server_lookup_match.group(1)
-
-                print("Passo 4 (Iframe): Parametri dinamici estratti.")
-
-                # Quinto passo (Iframe): Richiesta di autenticazione
-                auth_url = f'{auth_host}{channel_key}&ts={auth_ts}&rnd={auth_rnd}&sig={auth_sig}'
-                print(f"Passo 5 (Iframe): Richiesta di autenticazione a {auth_url}")
-                auth_response = session.get(auth_url, headers=current_headers, timeout=(5, 15))
-                auth_response.raise_for_status()
-                print("Passo 5 (Iframe) completato.")
-
-                # Sesto passo (Iframe): Richiesta di server lookup per ottenere la server_key
-                server_lookup_url = f"https://{urlparse(url2).netloc}{server_lookup}{channel_key}"
-                print(f"Passo 6 (Iframe): Richiesta server lookup a {server_lookup_url}")
-                server_lookup_response = session.get(server_lookup_url, headers=current_headers, timeout=(5, 15))
-                server_lookup_response.raise_for_status()
-                server_lookup_data = server_lookup_response.json()
-                print("Passo 6 (Iframe) completato.")
-
-                # Settimo passo (Iframe): Estrai server_key dalla risposta di server lookup
-                server_key = server_lookup_data.get('server_key')
-                if not server_key:
-                    raise ValueError("'server_key' non trovato nella risposta di server lookup.")
-                print(f"Passo 7 (Iframe): Estratto server_key: {server_key}")
-
-                # Ottavo passo (Iframe): Costruisci il link finale
-                host_match = re.search('(?s)m3u8 =.*?:.*?:.*?".*?".*?"([^"]*)"', iframe_response_text)
-                if not host_match:
-                    raise ValueError("Impossibile trovare l'host finale per l'm3u8.")
-                host = host_match.group(1)
-                print(f"Passo 8 (Iframe): Trovato host finale per m3u8: {host}")
-
-                # Costruisci l'URL finale del flusso
-                final_stream_url = (
-                    f'https://{server_key}{host}{server_key}/{channel_key}/mono.m3u8'
-                )
-
-                # Prepara gli header per lo streaming
-                stream_headers = {
-                    'User-Agent': current_headers.get('User-Agent', ''),
-                    'Referer': referer_raw,
-                    'Origin': origin_raw
-                }
-                
+            # Verifica se la risposta iniziale è un file M3U8 diretto
+            if initial_response_text and initial_response_text.strip().startswith('#EXTM3U'):
+                print("Trovato file M3U8 diretto.")
                 return {
-                    "resolved_url": final_stream_url,
-                    "headers": stream_headers
+                    "resolved_url": final_url_after_redirects,
+                    "headers": current_headers
                 }
-
-            except (ValueError, requests.exceptions.RequestException) as e:
-                print(f"Logica iframe fallita: {e}")
-                print("Tentativo fallback: verifica se l'URL iniziale era un M3U8 diretto...")
-
-                # Fallback: Verifica se la risposta iniziale era un file M3U8 diretto
-                if initial_response_text and initial_response_text.strip().startswith('#EXTM3U'):
-                    print("Fallback riuscito: Trovato file M3U8 diretto.")
-                    return {
-                        "resolved_url": final_url_after_redirects,
-                        "headers": current_headers
-                    }
-                else:
-                    print("Fallback fallito: La risposta iniziale non era un M3U8 diretto.")
-                    return {
-                        "resolved_url": clean_url,
-                        "headers": current_headers
-                    }
+            else:
+                print("La risposta iniziale non era un M3U8 diretto.")
+                return {
+                    "resolved_url": clean_url,
+                    "headers": current_headers
+                }
 
     except requests.exceptions.RequestException as e:
         print(f"Errore durante la richiesta HTTP iniziale: {e}")
@@ -327,20 +275,8 @@ def proxy_m3u():
     # --- Logica per trasformare l'URL se necessario ---
     processed_url = m3u_url
     
-    # Trasforma /stream/ in /embed/ per Daddylive
-    if '/stream/stream-' in m3u_url and 'thedaddy.click' in m3u_url:
-        processed_url = m3u_url.replace('/stream/stream-', '/embed/stream-')
-        print(f"URL {m3u_url} trasformato da /stream/ a /embed/: {processed_url}")
-    
-    match_premium_m3u8 = re.search(r'/premium(\d+)/mono\.m3u8$', m3u_url)
-
-    if match_premium_m3u8:
-        channel_number = match_premium_m3u8.group(1)
-        transformed_url = f"https://thedaddy.click/embed/stream-{channel_number}.php"
-        print(f"URL {m3u_url} corrisponde al pattern premium. Trasformato in: {transformed_url}")
-        processed_url = transformed_url
-    else:
-        print(f"URL {processed_url} processato per la risoluzione.")
+    # La logica specifica per thedaddy.click e URL premium è stata rimossa.
+    print(f"URL {processed_url} processato per la risoluzione.")
 
     try:
         print(f"Chiamata a resolve_m3u8_link per URL processato: {processed_url}")
@@ -395,37 +331,6 @@ def proxy_m3u():
     except Exception as e:
         print(f"Errore generico nella funzione proxy_m3u: {str(e)}")
         return f"Errore generico durante l'elaborazione: {str(e)}", 500
-
-@app.route('/proxy/resolve')
-def proxy_resolve():
-    """Proxy per risolvere e restituire un URL M3U8"""
-    url = request.args.get('url', '').strip()
-    if not url:
-        return "Errore: Parametro 'url' mancante", 400
-
-    headers = {
-        unquote(key[2:]).replace("_", "-"): unquote(value).strip()
-        for key, value in request.args.items()
-        if key.lower().startswith("h_")
-    }
-
-    try:
-        result = resolve_m3u8_link(url, headers)
-        
-        if not result["resolved_url"]:
-            return "Errore: Impossibile risolvere l'URL", 500
-            
-        headers_query = "&".join([f"h_{quote(k)}={quote(v)}" for k, v in result["headers"].items()])
-        
-        return Response(
-            f"#EXTM3U\n"
-            f"#EXTINF:-1,Canale Risolto\n"
-            f"/proxy/m3u?url={quote(result['resolved_url'])}&{headers_query}",
-            content_type="application/vnd.apple.mpegurl; charset=utf-8"
-        )
-        
-    except Exception as e:
-        return f"Errore durante la risoluzione dell'URL: {str(e)}", 500
 
 @app.route('/proxy/ts')
 def proxy_ts():
