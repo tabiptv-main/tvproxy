@@ -134,21 +134,14 @@ def resolve_m3u8_link(url, headers=None):
                         print(f"Errore HEAD per Daddy stream {test_url}: {e}")
             
             print(f"Nessuno stream diretto .m3u8 trovato nei siti newkso.ru per {clean_url}. Si procederà con la logica di fallback se applicabile.")
-            # If no specific newkso.ru stream is found for the .php URL, 
-            # we will let it fall through to the generic M3U8 resolution logic below.
-            # The generic logic will attempt to fetch clean_url (the .php URL).
-            # If that .php page itself returns M3U8 content, it will be processed.
-            # Otherwise, it will likely be treated as non-M3U8 content by proxy_m3u.
 
     initial_response_text = None
     final_url_after_redirects = None
 
-    # La logica iframe è stata rimossa come richiesto.
-
     try:
         with requests.Session() as session:
             print(f"Passo 1: Richiesta a {clean_url}")
-            response = session.get(clean_url, headers=current_headers, allow_redirects=True, timeout=(5, 15))
+            response = session.get(clean_url, headers=current_headers, allow_redirects=True, timeout=(15, 30))
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
@@ -168,6 +161,12 @@ def resolve_m3u8_link(url, headers=None):
                     "headers": current_headers
                 }
 
+    except requests.exceptions.ConnectTimeout as e:
+        print(f"Timeout di connessione per {clean_url}: {e}")
+        return {"resolved_url": None, "headers": current_headers}
+    except requests.exceptions.ReadTimeout as e:
+        print(f"Timeout di lettura per {clean_url}: {e}")
+        return {"resolved_url": None, "headers": current_headers}
     except requests.exceptions.RequestException as e:
         print(f"Errore durante la richiesta HTTP iniziale: {e}")
         return {"resolved_url": clean_url, "headers": current_headers}
@@ -187,12 +186,12 @@ def proxy():
         server_ip = request.host
         
         # Scarica la lista M3U originale
-        response = requests.get(m3u_url, timeout=(10, 30)) # Timeout connessione 10s, lettura 30s
+        response = requests.get(m3u_url, timeout=(15, 30))
         response.raise_for_status()
         m3u_content = response.text
         
         modified_lines = []
-        exthttp_headers_query_params = "" # Stringa per conservare gli header da #EXTHTTP
+        exthttp_headers_query_params = ""
 
         for line in m3u_content.splitlines():
             line = line.strip()
@@ -217,21 +216,20 @@ def proxy():
                         exthttp_headers_query_params = ""
                 except Exception as e:
                     print(f"Errore nel parsing di #EXTHTTP '{line}': {e}")
-                    exthttp_headers_query_params = "" # Resetta in caso di errore
-                modified_lines.append(line) # Mantieni la riga #EXTHTTP originale
+                    exthttp_headers_query_params = ""
+                modified_lines.append(line)
             elif line and not line.startswith('#'):
                 # Questa è una riga di URL del flusso
                 # Verifica se è un URL di Pluto.tv e saltalo
                 if 'pluto.tv' in line.lower():
-                    modified_lines.append(line)  # Mantieni l'URL originale senza proxy
-                    exthttp_headers_query_params = ""  # Resetta gli header
+                    modified_lines.append(line)
+                    exthttp_headers_query_params = ""
                 else:
                     # Applica gli header #EXTHTTP se presenti e poi resettali
-                    # Assicurati che l'URL sia completamente codificato, inclusi gli slash
                     encoded_line = quote(line, safe='')
                     modified_line = f"http://{server_ip}/proxy/m3u?url={encoded_line}{exthttp_headers_query_params}"
                     modified_lines.append(modified_line)
-                    exthttp_headers_query_params = ""  # Resetta gli header dopo averli usati
+                    exthttp_headers_query_params = ""
             else:
                 # Mantieni invariate le altre righe di metadati o righe vuote
                 modified_lines.append(line)
@@ -275,7 +273,6 @@ def proxy_m3u():
     # --- Logica per trasformare l'URL se necessario ---
     processed_url = m3u_url
     
-    # La logica specifica per thedaddy.click e URL premium è stata rimossa.
     print(f"URL {processed_url} processato per la risoluzione.")
 
     try:
@@ -292,7 +289,7 @@ def proxy_m3u():
 
         # Fetchare il contenuto M3U8 effettivo dall'URL risolto
         print(f"Fetching M3U8 content from resolved URL: {resolved_url}")
-        m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=(10, 20)) # Timeout connessione 10s, lettura 20s
+        m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=(15, 30))
         m3u_response.raise_for_status()
         # Applica la codifica corretta
         m3u_response.encoding = m3u_response.apparent_encoding or 'utf-8'
@@ -347,7 +344,7 @@ def proxy_ts():
 
     try:
         # Stream diretto senza cache per evitare freezing
-        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(10, 30)) # Timeout di connessione 10s, lettura 30s
+        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(15, 30))
         response.raise_for_status()
         
         def generate():
@@ -374,7 +371,7 @@ def proxy_key():
     }
 
     try:
-        response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=(5, 15)) # Timeout connessione 5s, lettura 15s
+        response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=(15, 30))
         response.raise_for_status()
         
         return Response(response.content, content_type="application/octet-stream")
