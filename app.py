@@ -230,12 +230,12 @@ def proxy():
         server_ip = request.host
         
         # Scarica la lista M3U originale
-        response = requests.get(m3u_url, timeout=(10, 30))
+        response = requests.get(m3u_url, timeout=(10, 30)) # Timeout connessione 10s, lettura 30s
         response.raise_for_status()
         m3u_content = response.text
         
         modified_lines = []
-        exthttp_headers_query_params = ""
+        exthttp_headers_query_params = "" # Stringa per conservare gli header da #EXTHTTP
 
         for line in m3u_content.splitlines():
             line = line.strip()
@@ -248,10 +248,10 @@ def proxy():
                     # Costruisci la stringa dei parametri di query per gli header
                     temp_params = []
                     for key, value in headers_dict.items():
-                        # Converti la chiave in minuscolo e sostituisci spazi con +
-                        key_lower = key.lower()
-                        value_encoded = quote(str(value)).replace('%20', '+')
-                        temp_params.append(f"h_{quote(key_lower)}={value_encoded}")
+                        # URL-encode sia la chiave (dopo h_) che il valore usando quote con safe=''
+                        encoded_key = quote(key, safe='')
+                        encoded_value = quote(str(value), safe='')
+                        temp_params.append(f"h_{encoded_key}={encoded_value}")
                     
                     if temp_params:
                         exthttp_headers_query_params = "&" + "&".join(temp_params)
@@ -259,19 +259,21 @@ def proxy():
                         exthttp_headers_query_params = ""
                 except Exception as e:
                     print(f"Errore nel parsing di #EXTHTTP '{line}': {e}")
-                    exthttp_headers_query_params = ""
-                modified_lines.append(line)
+                    exthttp_headers_query_params = "" # Resetta in caso di errore
+                modified_lines.append(line) # Mantieni la riga #EXTHTTP originale
             elif line and not line.startswith('#'):
                 # Questa è una riga di URL del flusso
+                # Verifica se è un URL di Pluto.tv e saltalo
                 if 'pluto.tv' in line.lower():
-                    modified_lines.append(line)
-                    exthttp_headers_query_params = ""
+                    modified_lines.append(line)  # Mantieni l'URL originale senza proxy
+                    exthttp_headers_query_params = ""  # Resetta gli header
                 else:
-                    # Applica codifica completa dell'URL
+                    # Applica gli header #EXTHTTP se presenti e poi resettali
                     modified_line = f"http://{server_ip}/proxy/m3u?url={quote(line, safe='')}{exthttp_headers_query_params}"
                     modified_lines.append(modified_line)
-                    exthttp_headers_query_params = ""
+                    exthttp_headers_query_params = ""  # Resetta gli header dopo averli usati
             else:
+                # Mantieni invariate le altre righe di metadati o righe vuote
                 modified_lines.append(line)
         
         modified_content = '\n'.join(modified_lines)
