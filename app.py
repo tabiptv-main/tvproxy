@@ -126,7 +126,7 @@ def resolve_m3u8_link(url, headers=None):
                     test_url = f"{site}{folder_name}/mono.m3u8"
                     print(f"Tentativo canale Daddy: {test_url}")
                     try:
-                        response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=30, allow_redirects=True)
+                        response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=2.5, allow_redirects=True)
                         if response.status_code == 200:
                             print(f"Stream Daddy trovato: {test_url}")
                             return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
