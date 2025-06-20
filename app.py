@@ -23,10 +23,7 @@ def replace_key_uri(line, headers_query):
     return line
 
 def resolve_m3u8_link(url, headers=None):
-    """
-    Tenta di risolvere un URL M3U8 supportando sia URL puliti che URL con header concatenati.
-    Gestisce automaticamente l'estrazione degli header dai parametri dell'URL.
-    """
+    """Tenta di risolvere un URL M3U8 supportando sia URL puliti che URL con header concatenati."""
     if not url:
         print("Errore: URL non fornito.")
         return {"resolved_url": None, "headers": {}}
@@ -42,32 +39,46 @@ def resolve_m3u8_link(url, headers=None):
     clean_url = url
     extracted_headers = {}
     
-    # Verifica se l'URL contiene parametri header concatenati
-    if '&h_' in url:
+    # Verifica se l'URL contiene parametri header concatenati (entrambi i formati)
+    if '&h_' in url or '%26h_' in url:
         print("Rilevati parametri header nell'URL - Estrazione in corso...")
         
-        # Separa l'URL base dai parametri degli header
-        url_parts = url.split('&h_', 1)
-        clean_url = url_parts[0]
-        header_params = '&h_' + url_parts[1]
+        # Gestisci il formato con %26 (doppia codifica) SOLO se NON è vavoo.to
+        if '%26h_' in url and 'vavoo.to' not in url.lower():
+            print("Formato con %26 rilevato (non vavoo.to) - Decodifica doppia necessaria")
+            # Prima decodifica l'URL per convertire %26 in &
+            url = unquote(url)
+            print(f"URL dopo prima decodifica: {url}")
+        elif '%26h_' in url and 'vavoo.to' in url.lower():
+            print("URL vavoo.to con %26 rilevato - Mantengo codifica originale")
+            # Per vavoo.to, converti solo %26 in & senza decodificare tutto
+            url = url.replace('%26', '&')
+            print(f"URL vavoo.to dopo conversione %26: {url}")
         
-        # Estrai gli header dai parametri
-        for param in header_params.split('&'):
-            if param.startswith('h_'):
-                try:
-                    key_value = param[2:].split('=', 1)
-                    if len(key_value) == 2:
-                        key = unquote(key_value[0]).replace('_', '-')
-                        value = unquote(key_value[1])
-                        extracted_headers[key] = value
-                        print(f"Header estratto: {key} = {value}")
-                except Exception as e:
-                    print(f"Errore nell'estrazione dell'header {param}: {e}")
-        
-        # Combina gli header estratti con quelli esistenti
-        current_headers.update(extracted_headers)
-        print(f"URL pulito: {clean_url}")
-        print(f"Header finali: {current_headers}")
+        # Ora processa normalmente con &h_
+        if '&h_' in url:
+            # Separa l'URL base dai parametri degli header
+            url_parts = url.split('&h_', 1)
+            clean_url = url_parts[0]
+            header_params = '&h_' + url_parts[1]
+            
+            # Estrai gli header dai parametri
+            for param in header_params.split('&'):
+                if param.startswith('h_'):
+                    try:
+                        key_value = param[2:].split('=', 1)
+                        if len(key_value) == 2:
+                            key = unquote(key_value[0]).replace('_', '-')
+                            value = unquote(key_value[1])
+                            extracted_headers[key] = value
+                            print(f"Header estratto: {key} = {value}")
+                    except Exception as e:
+                        print(f"Errore nell'estrazione dell'header {param}: {e}")
+            
+            # Combina gli header estratti con quelli esistenti
+            current_headers.update(extracted_headers)
+            print(f"URL pulito: {clean_url}")
+            print(f"Header finali: {current_headers}")
     else:
         print("URL pulito rilevato - Nessuna estrazione header necessaria")
 
