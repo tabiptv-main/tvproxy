@@ -477,5 +477,10 @@ def proxy_key():
     except requests.RequestException as e:
         return f"Errore durante il download della chiave: {str(e)}", 500
 
+@app.route('/')
+def index():
+    """Pagina principale che mostra un messaggio di benvenuto"""
+    return "Proxy started!"
+
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=7860, debug=False)
