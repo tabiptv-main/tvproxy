@@ -4,8 +4,26 @@ from urllib.parse import urlparse, urljoin, quote, unquote
 import re
 import json
 import os
+import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 app = Flask(__name__)
+
+def create_session_with_retries():
+    """Crea una sessione con logica di retry per connessioni instabili"""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        connect=3,
+        read=2,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 def detect_m3u_type(content):
     """Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS)"""
@@ -33,12 +51,16 @@ def resolve_m3u8_link(url, headers=None):
 
     print(f"Tentativo di risoluzione URL: {url}")
     
-    # Inizializza gli header di default
+    # Inizializza gli header di default migliorati
     current_headers = headers if headers else {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
     }
     
-    # **SUPPORTO PER ENTRAMBE LE VERSIONI**
     clean_url = url
     extracted_headers = {}
 
@@ -55,23 +77,18 @@ def resolve_m3u8_link(url, headers=None):
     if '&h_' in url or '%26h_' in url:
         print("Rilevati parametri header nell'URL - Estrazione in corso...")
         
-        # Gestisci sia il formato normale che quello URL-encoded
         if '%26h_' in url:
-            # Per vavoo.to, sostituisci solo %26 con & senza doppia decodifica
             if 'vavoo.to' in url.lower():
                 url = url.replace('%26', '&')
                 print(f"URL vavoo.to processato: {url}")
             else:
-                # Per altri URL, applica la doppia decodifica completa
                 url = unquote(unquote(url))
                 print(f"URL con doppia decodifica: {url}")
         
-        # Separa l'URL base dai parametri degli header
         url_parts = url.split('&h_', 1)
         clean_url = url_parts[0]
         header_params = '&h_' + url_parts[1]
         
-        # Estrai gli header dai parametri
         for param in header_params.split('&'):
             if param.startswith('h_'):
                 try:
@@ -84,14 +101,13 @@ def resolve_m3u8_link(url, headers=None):
                 except Exception as e:
                     print(f"Errore nell'estrazione dell'header {param}: {e}")
         
-        # Combina gli header estratti con quelli esistenti
         current_headers.update(extracted_headers)
         print(f"URL pulito: {clean_url}")
         print(f"Header finali: {current_headers}")
     else:
         print("URL pulito rilevato - Nessuna estrazione header necessaria")
 
-    # New logic for thedaddy.click .php URLs
+    # Logic for thedaddy.click .php URLs
     if clean_url.endswith('.php'):
         print(f"Rilevato URL .php {clean_url}")
         channel_id_match = re.search(r'stream-(\d+)\.php', clean_url)
@@ -112,7 +128,7 @@ def resolve_m3u8_link(url, headers=None):
                 test_url = f"https://new.newkso.ru/wikihz/{folder_name}/mono.m3u8"
                 print(f"Tentativo canale Tennis: {test_url}")
                 try:
-                    response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=2.5, allow_redirects=True)
+                    response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=5, allow_redirects=True)
                     if response.status_code == 200:
                         print(f"Stream Tennis trovato: {test_url}")
                         return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -126,40 +142,38 @@ def resolve_m3u8_link(url, headers=None):
                     test_url = f"{site}{folder_name}/mono.m3u8"
                     print(f"Tentativo canale Daddy: {test_url}")
                     try:
-                        response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=2.5, allow_redirects=True)
+                        response = requests.head(test_url, headers=newkso_headers_for_php_resolution, timeout=5, allow_redirects=True)
                         if response.status_code == 200:
                             print(f"Stream Daddy trovato: {test_url}")
                             return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
                     except requests.RequestException as e:
                         print(f"Errore HEAD per Daddy stream {test_url}: {e}")
             
-            print(f"Nessuno stream diretto .m3u8 trovato nei siti newkso.ru per {clean_url}. Si procederà con la logica di fallback se applicabile.")
-
-    initial_response_text = None
-    final_url_after_redirects = None
+            print(f"Nessuno stream diretto .m3u8 trovato nei siti newkso.ru per {clean_url}.")
 
     try:
-        with requests.Session() as session:
-            print(f"Passo 1: Richiesta a {clean_url}")
-            response = session.get(clean_url, headers=current_headers, allow_redirects=True, timeout=(15, 30))
-            response.raise_for_status()
-            initial_response_text = response.text
-            final_url_after_redirects = response.url
-            print(f"Passo 1 completato. URL finale dopo redirect: {final_url_after_redirects}")
+        # Usa sessione con retry per connessioni instabili
+        session = create_session_with_retries()
+        print(f"Passo 1: Richiesta a {clean_url}")
+        response = session.get(clean_url, headers=current_headers, allow_redirects=True, timeout=(15, 30))
+        response.raise_for_status()
+        initial_response_text = response.text
+        final_url_after_redirects = response.url
+        print(f"Passo 1 completato. URL finale dopo redirect: {final_url_after_redirects}")
 
-            # Verifica se la risposta iniziale è un file M3U8 diretto
-            if initial_response_text and initial_response_text.strip().startswith('#EXTM3U'):
-                print("Trovato file M3U8 diretto.")
-                return {
-                    "resolved_url": final_url_after_redirects,
-                    "headers": current_headers
-                }
-            else:
-                print("La risposta iniziale non era un M3U8 diretto.")
-                return {
-                    "resolved_url": clean_url,
-                    "headers": current_headers
-                }
+        # Verifica se la risposta iniziale è un file M3U8 diretto
+        if initial_response_text and initial_response_text.strip().startswith('#EXTM3U'):
+            print("Trovato file M3U8 diretto.")
+            return {
+                "resolved_url": final_url_after_redirects,
+                "headers": current_headers
+            }
+        else:
+            print("La risposta iniziale non era un M3U8 diretto.")
+            return {
+                "resolved_url": clean_url,
+                "headers": current_headers
+            }
 
     except requests.exceptions.ConnectTimeout as e:
         print(f"Timeout di connessione per {clean_url}: {e}")
@@ -169,10 +183,10 @@ def resolve_m3u8_link(url, headers=None):
         return {"resolved_url": None, "headers": current_headers}
     except requests.exceptions.RequestException as e:
         print(f"Errore durante la richiesta HTTP iniziale: {e}")
-        return {"resolved_url": clean_url, "headers": current_headers}
+        return {"resolved_url": None, "headers": current_headers}
     except Exception as e:
         print(f"Errore generico durante la risoluzione: {e}")
-        return {"resolved_url": clean_url, "headers": current_headers}
+        return {"resolved_url": None, "headers": current_headers}
 
 @app.route('/proxy')
 def proxy():
@@ -182,10 +196,8 @@ def proxy():
         return "Errore: Parametro 'url' mancante", 400
 
     try:
-        # Ottieni l'IP del server
         server_ip = request.host
         
-        # Scarica la lista M3U originale
         response = requests.get(m3u_url, timeout=(15, 30))
         response.raise_for_status()
         m3u_content = response.text
@@ -197,20 +209,16 @@ def proxy():
             line = line.strip()
             if line.startswith('#EXTHTTP:'):
                 try:
-                    # Estrai la parte JSON dalla riga #EXTHTTP:
                     json_str = line.split(':', 1)[1].strip()
                     headers_dict = json.loads(json_str)
                     
-                    # Costruisci la stringa dei parametri di query per gli header con doppia codifica
                     temp_params = []
                     for key, value in headers_dict.items():
-                        # Doppia codifica: prima codifica normale, poi codifica di nuovo
                         encoded_key = quote(quote(key))
                         encoded_value = quote(quote(str(value)))
                         temp_params.append(f"h_{encoded_key}={encoded_value}")
                     
                     if temp_params:
-                        # Usa %26 invece di & come separatore per gli header
                         exthttp_headers_query_params = "%26" + "%26".join(temp_params)
                     else:
                         exthttp_headers_query_params = ""
@@ -219,28 +227,28 @@ def proxy():
                     exthttp_headers_query_params = ""
                 modified_lines.append(line)
             elif line and not line.startswith('#'):
-                # Questa è una riga di URL del flusso
-                # Verifica se è un URL di Pluto.tv e saltalo
                 if 'pluto.tv' in line.lower():
                     modified_lines.append(line)
                     exthttp_headers_query_params = ""
                 else:
-                    # Applica gli header #EXTHTTP se presenti e poi resettali
                     encoded_line = quote(line, safe='')
                     modified_line = f"http://{server_ip}/proxy/m3u?url={encoded_line}{exthttp_headers_query_params}"
                     modified_lines.append(modified_line)
                     exthttp_headers_query_params = ""
             else:
-                # Mantieni invariate le altre righe di metadati o righe vuote
                 modified_lines.append(line)
         
         modified_content = '\n'.join(modified_lines)
 
-        # Estrai il nome del file dall'URL originale
         parsed_m3u_url = urlparse(m3u_url)
         original_filename = os.path.basename(parsed_m3u_url.path)
         
-        return Response(modified_content, content_type="application/vnd.apple.mpegurl", headers={'Content-Disposition': f'attachment; filename="{original_filename}"'})
+        response = Response(modified_content, content_type="application/vnd.apple.mpegurl")
+        response.headers['Content-Disposition'] = f'attachment; filename="{original_filename}"'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        return response
         
     except requests.RequestException as e:
         return f"Errore durante il download della lista M3U: {str(e)}", 500
@@ -260,19 +268,15 @@ def proxy_m3u():
         "Origin": "https://vavoo.to"
     }
 
-    # Estrai gli header dalla richiesta (versione parametri query)
     request_headers = {
         unquote(key[2:]).replace("_", "-"): unquote(value).strip()
         for key, value in request.args.items()
         if key.lower().startswith("h_")
     }
     
-    # Combina header di default con quelli della richiesta
     headers = {**default_headers, **request_headers}
 
-    # --- Logica per trasformare l'URL se necessario ---
     processed_url = m3u_url
-    
     print(f"URL {processed_url} processato per la risoluzione.")
 
     try:
@@ -287,26 +291,24 @@ def proxy_m3u():
 
         print(f"Risoluzione completata. URL M3U8 finale: {resolved_url}")
 
-        # Fetchare il contenuto M3U8 effettivo dall'URL risolto
         print(f"Fetching M3U8 content from resolved URL: {resolved_url}")
-        m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=(15, 30))
+        session = create_session_with_retries()
+        m3u_response = session.get(resolved_url, headers=current_headers_for_proxy, allow_redirects=True, timeout=(15, 30))
         m3u_response.raise_for_status()
-        # Applica la codifica corretta
         m3u_response.encoding = m3u_response.apparent_encoding or 'utf-8'
         m3u_content = m3u_response.text
         final_url = m3u_response.url
 
-        # Processa il contenuto M3U8
         file_type = detect_m3u_type(m3u_content)
 
         if file_type == "m3u":
-            return Response(m3u_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
+            response = Response(m3u_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
 
-        # Processa contenuto M3U8
         parsed_url = urlparse(final_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path.rsplit('/', 1)[0]}/"
 
-        # Prepara la query degli header per segmenti/chiavi proxati
         headers_query = "&".join([f"h_{quote(k)}={quote(v)}" for k, v in current_headers_for_proxy.items()])
 
         modified_m3u8 = []
@@ -320,7 +322,11 @@ def proxy_m3u():
             modified_m3u8.append(line)
 
         modified_m3u8_content = "\n".join(modified_m3u8)
-        return Response(modified_m3u8_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
+        response = Response(modified_m3u8_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        return response
 
     except requests.RequestException as e:
         print(f"Errore durante il download o la risoluzione del file: {str(e)}")
@@ -343,8 +349,8 @@ def proxy_ts():
     }
 
     try:
-        # Stream diretto senza cache per evitare freezing
-        response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(15, 30))
+        session = create_session_with_retries()
+        response = session.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=(15, 30))
         response.raise_for_status()
         
         def generate():
@@ -352,7 +358,9 @@ def proxy_ts():
                 if chunk:
                     yield chunk
         
-        return Response(generate(), content_type="video/mp2t")
+        response_obj = Response(generate(), content_type="video/mp2t")
+        response_obj.headers['Access-Control-Allow-Origin'] = '*'
+        return response_obj
     
     except requests.RequestException as e:
         return f"Errore durante il download del segmento TS: {str(e)}", 500
@@ -371,10 +379,13 @@ def proxy_key():
     }
 
     try:
-        response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=(15, 30))
+        session = create_session_with_retries()
+        response = session.get(key_url, headers=headers, allow_redirects=True, timeout=(10, 20))
         response.raise_for_status()
         
-        return Response(response.content, content_type="application/octet-stream")
+        response_obj = Response(response.content, content_type="application/octet-stream")
+        response_obj.headers['Access-Control-Allow-Origin'] = '*'
+        return response_obj
     
     except requests.RequestException as e:
         return f"Errore durante il download della chiave: {str(e)}", 500
