@@ -11,7 +11,7 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 
 ---
 
-## ☁️ Deploy su Render
+## ☁️ Deploy su Render (Does not work with DLHD)
 
 1. Vai su **Projects → Deploy a Web Service → Public Git Repo**
 2. Inserisci il repo: `https://github.com/nzo66/tvproxy` → **Connect**
@@ -21,7 +21,7 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 
 ---
 
-## 🤗 Deploy su HuggingFace
+## 🤗 Deploy su HuggingFace (Does not work with DLHD)
 
 `ricora di fare factory rebuild per aggiornare il proxy se ci sono aggiornamenti!`
 
