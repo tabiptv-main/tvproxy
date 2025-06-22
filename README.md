@@ -11,17 +11,22 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 
 ---
 
-## ☁️ Deploy su Render (Non Funzionano i canali DLHD)
+## ☁️ Deploy su Render (I canali DLHD funzionano solo con Proxy SOCKS5)
 
-1. Vai su **Projects → Deploy a Web Service → Public Git Repo**
-2. Inserisci il repo: `https://github.com/nzo66/tvproxy` → **Connect**
-3. Dai un nome a piacere
-4. Imposta **Instance Type** su `Free`
-5. Clicca su **Deploy Web Service**
+1.  Vai su **Projects → Deploy a Web Service → Public Git Repo**
+2.  Inserisci il repo: `https://github.com/nzo66/tvproxy` → **Connect**
+3.  Dai un nome a piacere
+4.  Imposta **Instance Type** su `Free`
+5.  **Configura le variabili d'ambiente per il proxy:**
+    *   Nella sezione **Environment**, aggiungi una nuova variabile.
+    *   **Key:** `NEWKSO_PROXY_SOCKS5`
+    *   **Value:** `socks5h://user:pass@host:port` (sostituisci con i tuoi dati del proxy)
+    > ℹ️ Per maggiori dettagli sul formato del proxy, consulta la sezione Configurazione Proxy.
+6.  Clicca su **Deploy Web Service**
 
 ---
 
-## 🤗 Deploy su HuggingFace (Non Funzionano i canali DLHD)
+## 🤗 Deploy su HuggingFace (I canali DLHD funzionano solo con Proxy SOCKS5)
 
 `ricora di fare factory rebuild per aggiornare il proxy se ci sono aggiornamenti!`
 
@@ -29,7 +34,13 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 2. Scegli un nome qualsiasi e imposta **Docker** come tipo
 3. Lascia **Public** e crea lo Space
 4. Vai in alto a destra → `⋮` → **Files** → carica **DockerfileHF** rinominandolo **Dockerfile**
-5. Infine vai su `⋮` → **Embed this Space** per ottenere il **Direct URL**
+5. **Configura le variabili d'ambiente per il proxy:**
+    *   Vai su **Settings** (Impostazioni) del tuo Space.
+    *   Nella sezione **Environment Secret**, aggiungi una nuova variabile secret.
+    *   **Name:** `NEWKSO_PROXY_SOCKS5`
+    *   **Value:** `socks5h://user:pass@host:port` (sostituisci con i tuoi dati del proxy)
+    > ℹ️ Per maggiori dettagli sul formato del proxy, consulta la sezione Configurazione Proxy.
+6.  Infine vai su `⋮` → **Embed this Space** per ottenere il **Direct URL**
 
 ---
 
@@ -64,13 +75,27 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 
 ### ✅ Costruzione e Avvio
 
-```bash
-pkg install git python -y
+# 1. Installa i pacchetti necessari (incluso l'editor nano)
+pkg install git python nano -y
+
+# 2. Clona il repository e accedi alla cartella
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
-pip install -r requirements.txt'
-gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:7860 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
+
+# 3. Installa le dipendenze Python
+pip install -r requirements.txt
+
+# 4. (Opzionale) Crea il file .env per il proxy
+nano .env
 ```
+Dopo aver eseguito `nano .env`, incolla la configurazione del tuo proxy (esempio sotto), poi salva il file premendo `Ctrl+X`, poi `Y`, e infine `Invio`.
+```
+# Esempio di contenuto per il file .env
+NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+```
+```bash
+# 5. Avvia il server con Gunicorn
+gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:7860 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
 
 ---
 
@@ -78,17 +103,29 @@ gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:
 
 ### ✅ Setup e Avvio
 
-```bash
-# Clona il repository
+-# Clona il repository
++# 1. Clona il repository
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 
-# Installa le dipendenze
+-# Installa le dipendenze
++# 2. Installa le dipendenze
 pip install -r requirements.txt
-
-# Avvia il server
+-
+-# Avvia il server
++```
++Per configurare un proxy senza dover usare il comando `export`, puoi creare un file `.env`.
++```bash
++# 3. (Opzionale) Crea e modifica il file .env con nano (o il tuo editor preferito)
++nano .env
++```
++Aggiungi la variabile del proxy al file (lo script la caricherà automaticamente):
++```
++NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
++```
++```bash
++# 4. Avvia il server
 gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:7860 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
-```
 
 ---
 
