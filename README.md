@@ -37,12 +37,26 @@ Un server proxy leggero basato su **Flask** e **Requests**, progettato per:
 
 ### ✅ Costruzione e Avvio
 
-```bash
-git clone https://github.com/nzo66/tvproxy.git
-cd tvproxy
-docker build -t tvproxy .
-docker run -d -p 7860:7860 --name tvproxy tvproxy
-```
+1.  **Clona e costruisci l'immagine:**
+    ```bash
+    git clone https://github.com/nzo66/tvproxy.git
+    cd tvproxy
+    docker build -t tvproxy .
+    ```
+
+2.  **Avvia il container:**
+
+    *   **Senza proxy:**
+        ```bash
+        docker run -d -p 7860:7860 --name tvproxy tvproxy
+        ```
+
+    *   **Con un proxy (esempio):**
+        Per usare un proxy, passa le variabili d'ambiente con l'opzione `-e`.
+        ```bash
+        docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port" --name tvproxy tvproxy
+        ```
+        > ℹ️ Per maggiori dettagli sulla configurazione dei proxy, consulta la sezione Configurazione Proxy.
 
 ---
 
@@ -110,6 +124,27 @@ Da usare se non si dispone di un proxy SOCKS5. È possibile impostarne anche sol
 - **Formato:** `http://proxy.example.com:8080`
 - **Variabile HTTPS:** `NEWKSO_PROXY_HTTPS`
 - **Formato:** `https://proxy.example.com:8080`
+
+### 3. Uso di un file `.env` (per Sviluppo Locale)
+
+Per chi esegue lo script localmente (con Python o Gunicorn) senza Docker, un modo comodo per gestire le variabili d'ambiente è usare un file `.env`.
+
+1.  **Crea un file** chiamato `.env` nella directory principale del progetto (la stessa di `app.py`).
+2.  **Aggiungi le variabili** al suo interno, una per riga.
+
+**Esempio di file `.env`:**
+```
+# File .env per la configurazione del proxy
+NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+
+# Oppure per proxy HTTP/HTTPS
+# NEWKSO_PROXY_HTTP="http://proxy.example.com:8080"
+# NEWKSO_PROXY_HTTPS="https://proxy.example.com:8080"
+```
+
+Lo script caricherà automaticamente queste variabili all'avvio, senza bisogno di usare il comando `export`.
+
+> **Nota:** Il file `.env` non viene considerato quando si usa Docker, a meno che non sia configurato esplicitamente. Per Docker, continua a usare l'opzione `-e` come mostrato negli esempi.
 
 ---
 
