@@ -87,6 +87,47 @@ gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:
 
 ---
 
+## 🔒 Configurazione Proxy (SOCKS5 / HTTP / HTTPS)
+
+Per accedere a domini specifici che potrebbero essere bloccati (come `newkso.ru`), è ora possibile configurare un proxy. Lo script supporta proxy **SOCKS5**, **HTTP** e **HTTPS** tramite variabili d'ambiente.
+
+La configurazione avviene impostando una delle seguenti variabili d'ambiente prima di avviare lo script o il container Docker.
+
+### 1. Proxy SOCKS5 (Priorità Massima)
+
+Questa è l'opzione consigliata. Se impostata, avrà la precedenza su tutte le altre e verrà usata per tutto il traffico verso i domini protetti.
+
+- **Variabile:** `NEWKSO_PROXY_SOCKS5`
+- **Formato:** `socks5h://user:pass@host:port` (o `socks5://...`)
+
+> **Nota:** Per usare i proxy SOCKS5, la dipendenza `requests[socks]` deve essere installata (è già inclusa nel `requirements.txt`).
+
+### 2. Proxy HTTP / HTTPS (Alternativa)
+
+Da usare se non si dispone di un proxy SOCKS5. È possibile impostarne anche solo una.
+
+- **Variabile HTTP:** `NEWKSO_PROXY_HTTP`
+- **Formato:** `http://proxy.example.com:8080`
+- **Variabile HTTPS:** `NEWKSO_PROXY_HTTPS`
+- **Formato:** `https://proxy.example.com:8080`
+
+---
+
+### Esempi di Avvio con Proxy
+
+**Con Docker:**
+```bash
+# Avvia il container Docker passando la variabile d'ambiente per il proxy SOCKS5
+docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port" --name tvproxy tvproxy
+```
+
+**Con Gunicorn / Python:**
+```bash
+# Esporta la variabile d'ambiente prima di avviare il server
+export NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+gunicorn app:app -w 4 --worker-class gevent ...
+```
+
 ## 🛠️ Come Utilizzare
 
 Assicurati di sostituire i placeholder come `<server-ip>` con l'indirizzo IP o l'hostname effettivo del tuo server e `<URL_...>` con gli URL specifici.
