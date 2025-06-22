@@ -26,7 +26,7 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
 
 ## ☁️ Piattaforme di Deploy
 
-> ⚠️ **Importante:** Per i canali che lo richiedono (es. DLHD), è **necessario** configurare un proxy **SOCKS5**. Senza di esso, questi canali non funzioneranno.
+> ⚠️ **Importante:** Per i canali che lo richiedono (es. DLHD), è **necessario** configurare un proxy **SOCKS5** se non funzionano senza. Senza di esso, questi canali non funzioneranno.
 
 ### ▶️ Deploy su Render
 
