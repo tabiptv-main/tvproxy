@@ -103,28 +103,25 @@ gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:
 
 ### ✅ Setup e Avvio
 
--# Clona il repository
-+# 1. Clona il repository
+# 1. Clona il repository
 git clone https://github.com/nzo66/tvproxy.git
 cd tvproxy
 
--# Installa le dipendenze
-+# 2. Installa le dipendenze
+# 2. Installa le dipendenze
 pip install -r requirements.txt
--
--# Avvia il server
-+```
-+Per configurare un proxy senza dover usare il comando `export`, puoi creare un file `.env`.
-+```bash
-+# 3. (Opzionale) Crea e modifica il file .env con nano (o il tuo editor preferito)
-+nano .env
-+```
-+Aggiungi la variabile del proxy al file (lo script la caricherà automaticamente):
-+```
-+NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
-+```
-+```bash
-+# 4. Avvia il server
+
+```
+Per configurare un proxy senza dover usare il comando `export`, puoi creare un file `.env`.
+```bash
+# 3. (Opzionale) Crea e modifica il file .env con nano (o il tuo editor preferito)
+nano .env
+```
+Aggiungi la variabile del proxy al file (lo script la caricherà automaticamente):
+```
+NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+```
+```bash
+# 4. Avvia il server
 gunicorn app:app -w 4 --worker-class gevent --worker-connections 100 -b 0.0.0.0:7860 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
 
 ---
