@@ -395,4 +395,4 @@ def index():
 if __name__ == '__main__':
     print("--- SCRIPT INIZIALIZZATO, IN ATTESA DI AVVIARE IL SERVER FLASK ---", flush=True)
     print("--- AVVIO DEL SERVER FLASK (MODALITÀ DEBUG) ---", flush=True)
-    app.run(host="0.0.0.0", port=7860, debug=True)
+    app.run(host="0.0.0.0", port=7860, debug=False)
