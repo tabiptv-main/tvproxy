@@ -37,7 +37,7 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
 5.  **Configura le variabili d'ambiente per il proxy:**
     *   Nella sezione **Environment**, aggiungi una nuova variabile.
     *   **Key:** `NEWKSO_PROXY_SOCKS5`
-    *   **Value:** `socks5h://user:pass@host:port` (sostituisci con i dati del tuo proxy).
+    *   **Value:** `socks5://user:pass@host:port` (sostituisci con i dati del tuo proxy).
     *   **Nota:** Puoi inserire più proxy separandoli da una virgola (es. `socks5://proxy1,socks5://proxy2`). Lo script ne sceglierà uno a caso.
 6.  Clicca su **Create Web Service**.
 
