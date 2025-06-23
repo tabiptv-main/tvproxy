@@ -193,7 +193,9 @@ http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8&h_user-age
 
 ## 🔒 Configurazione Proxy
 
-Lo script supporta una configurazione proxy flessibile per gestire l'accesso a diversi domini. La configurazione avviene tramite variabili d'ambiente o un file `.env`.
+L'uso dei proxy è **completamente opzionale**. Dovresti configurarli solo se riscontri problemi di accesso a determinati contenuti che potrebbero essere bloccati nella tua rete o area geografica. Se non viene specificato alcun proxy, tutte le richieste verranno effettuate direttamente dal server.
+
+Lo script supporta una configurazione flessibile tramite variabili d'ambiente o un file `.env` (per uso locale).
 
 ### Logica di Priorità
 
