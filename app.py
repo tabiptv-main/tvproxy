@@ -15,7 +15,7 @@ NEWKSO_PROXY_SOCKS5 = os.getenv('NEWKSO_PROXY_SOCKS5', None) # es: 'socks5://use
 
 # Impostare su 'false', '0' o 'no' per disabilitare la verifica del certificato SSL quando si utilizza un proxy.
 # NOTA: A causa di una limitazione nella libreria PySocks, questa opzione potrebbe non funzionare come previsto per i proxy SOCKS.
-NEWKSO_PROXY_VERIFY_SSL = os.getenv('NEWKSO_PROXY_VERIFY_SSL', 'true').lower() not in ['false', '0', 'no']
+NEWKSO_PROXY_VERIFY_SSL = os.getenv('NEWKSO_PROXY_VERIFY_SSL', 'false').lower() not in ['false', '0', 'no']
 
 # Sopprimi gli avvisi solo se la verifica SSL è disabilitata
 if not NEWKSO_PROXY_VERIFY_SSL:
