@@ -5,6 +5,9 @@ import re
 import json
 import os
 import random
+from dotenv import load_dotenv
+
+load_dotenv()  # Carica le variabili dal file .env
 
 app = Flask(__name__)
 # Configurazione proxy per newkso.ru e daddy_php_sites (solo SOCKS5)
