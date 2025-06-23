@@ -7,11 +7,14 @@ import os
 import random
 
 app = Flask(__name__)
-
-# Configurazione proxy per newkso.ru e daddy_php_sites
-NEWKSO_PROXY_HTTP = os.getenv('NEWKSO_PROXY_HTTP', None)  # es: 'http://proxy.example.com:8080'
-NEWKSO_PROXY_HTTPS = os.getenv('NEWKSO_PROXY_HTTPS', None) # es: 'https://proxy.example.com:8080'
+# Configurazione proxy per newkso.ru e daddy_php_sites (solo SOCKS5)
 NEWKSO_PROXY_SOCKS5 = os.getenv('NEWKSO_PROXY_SOCKS5', None) # es: 'socks5://user:pass@host:port')
+NEWKSO_SSL_VERIFY = os.getenv('NEWKSO_SSL_VERIFY', 'false').lower() == 'true'
+
+# Disabilita gli avvisi di richiesta non sicura se la verifica SSL è disattivata
+if not NEWKSO_SSL_VERIFY:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_newkso_proxies():
     """Restituisce il dizionario dei proxy per newkso.ru e daddy_php_sites se configurati."""
@@ -22,11 +25,6 @@ def get_newkso_proxies():
         selected_proxy = random.choice(proxy_list)
         proxies['http'] = selected_proxy
         proxies['https'] = selected_proxy
-    else:
-        if NEWKSO_PROXY_HTTP:
-            proxies['http'] = NEWKSO_PROXY_HTTP
-        if NEWKSO_PROXY_HTTPS:
-            proxies['https'] = NEWKSO_PROXY_HTTPS
     return proxies or None
 
 def detect_m3u_type(content):
@@ -136,7 +134,8 @@ def resolve_m3u8_link(url, headers=None):
                 try:
                     proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
                     response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
-                                           proxies=proxies, timeout=2.5, allow_redirects=True)
+                                           proxies=proxies, timeout=5, allow_redirects=True,
+                                           verify=NEWKSO_SSL_VERIFY)
                     if response.status_code == 200:
                         app.logger.info(f"Stream Tennis trovato: {test_url}")
                         return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -152,7 +151,8 @@ def resolve_m3u8_link(url, headers=None):
                     try:
                         proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
                         response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
-                                               proxies=proxies, timeout=2.5, allow_redirects=True)
+                                               proxies=proxies, timeout=5, allow_redirects=True,
+                                               verify=NEWKSO_SSL_VERIFY)
                         if response.status_code == 200:
                             app.logger.info(f"Stream Daddy trovato: {test_url}")
                             return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -170,7 +170,7 @@ def resolve_m3u8_link(url, headers=None):
                     app.logger.debug(f"Proxy in uso per {clean_url}")
             app.logger.info(f"Passo 1: Richiesta a {clean_url}")
             response = session.get(clean_url, headers=current_headers, proxies=proxies, 
-                                 allow_redirects=True, timeout=(5, 15))
+                                 allow_redirects=True, timeout=(10, 20), verify=NEWKSO_SSL_VERIFY)
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
@@ -294,7 +294,8 @@ def proxy_m3u():
                 app.logger.debug(f"Proxy in uso per GET {resolved_url}")
 
         m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, 
-                                   proxies=proxies, allow_redirects=True, timeout=(10, 20))
+                                   proxies=proxies, allow_redirects=True, timeout=(10, 20),
+                                   verify=NEWKSO_SSL_VERIFY)
         m3u_response.raise_for_status()
         m3u_response.encoding = m3u_response.apparent_encoding or 'utf-8'
         m3u_content = m3u_response.text
@@ -349,7 +350,7 @@ def proxy_ts():
 
     try:
         response = requests.get(ts_url, headers=headers, proxies=proxies, stream=True, 
-                              allow_redirects=True, timeout=(10, 30))
+                              allow_redirects=True, timeout=(10, 30), verify=NEWKSO_SSL_VERIFY)
         response.raise_for_status()
         
         def generate():
@@ -383,7 +384,8 @@ def proxy_key():
 
     try:
         response = requests.get(key_url, headers=headers, proxies=proxies, 
-                              allow_redirects=True, timeout=(5, 15))
+                              allow_redirects=True, timeout=(10, 20),
+                              verify=NEWKSO_SSL_VERIFY)
         response.raise_for_status()
         
         return Response(response.content, content_type="application/octet-stream")
