@@ -14,25 +14,20 @@ NEWKSO_PROXY_HTTPS = os.getenv('NEWKSO_PROXY_HTTPS', None) # es: 'https://proxy.
 NEWKSO_PROXY_SOCKS5 = os.getenv('NEWKSO_PROXY_SOCKS5', None) # es: 'socks5://user:pass@host:port')
 
 def get_newkso_proxies():
-    """Restituisce il dizionario dei proxy per newkso.ru e daddy_php_sites se configurati"""
+    """Restituisce il dizionario dei proxy per newkso.ru e daddy_php_sites se configurati."""
     proxies = {}
     if NEWKSO_PROXY_SOCKS5:
-        # Se la variabile d'ambiente contiene una lista di proxy, ne sceglie uno a caso
-        if ',' in NEWKSO_PROXY_SOCKS5:
-            proxy_list = [p.strip() for p in NEWKSO_PROXY_SOCKS5.split(',')]
-            selected_proxy = random.choice(proxy_list)
-            proxies['http'] = selected_proxy
-            proxies['https'] = selected_proxy
-        else:
-            # Altrimenti, usa il singolo proxy fornito
-            proxies['http'] = NEWKSO_PROXY_SOCKS5
-            proxies['https'] = NEWKSO_PROXY_SOCKS5
+        # Sceglie un proxy a caso dalla lista (anche se ce n'è solo uno)
+        proxy_list = [p.strip() for p in NEWKSO_PROXY_SOCKS5.split(',')]
+        selected_proxy = random.choice(proxy_list)
+        proxies['http'] = selected_proxy
+        proxies['https'] = selected_proxy
     else:
         if NEWKSO_PROXY_HTTP:
             proxies['http'] = NEWKSO_PROXY_HTTP
         if NEWKSO_PROXY_HTTPS:
             proxies['https'] = NEWKSO_PROXY_HTTPS
-    return proxies if proxies else None
+    return proxies or None
 
 def detect_m3u_type(content):
     """Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS)"""
@@ -71,11 +66,11 @@ def resolve_m3u8_link(url, headers=None):
     Risolve un URL M3U8 supportando header e proxy per newkso.ru e daddy_php_sites.
     """
     if not url:
-        print("Errore: URL non fornito.")
+        app.logger.error("URL non fornito.")
         return {"resolved_url": None, "headers": {}}
 
-    print(f"Tentativo di risoluzione URL: {url}")
-    
+    app.logger.info(f"Tentativo di risoluzione URL: {url}")
+
     # Inizializza gli header di default
     current_headers = headers if headers else {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
@@ -95,7 +90,7 @@ def resolve_m3u8_link(url, headers=None):
     
     # Estrazione header da URL
     if '&h_' in url or '%26h_' in url:
-        print("Rilevati parametri header nell'URL - Estrazione in corso...")
+        app.logger.info("Rilevati parametri header nell'URL - Estrazione in corso...")
         if '%26h_' in url:
             if 'vavoo.to' in url.lower():
                 url = url.replace('%26', '&')
@@ -113,18 +108,18 @@ def resolve_m3u8_link(url, headers=None):
                         value = unquote(key_value[1])
                         extracted_headers[key] = value
                 except Exception as e:
-                    print(f"Errore nell'estrazione dell'header {param}: {e}")
+                    app.logger.error(f"Errore nell'estrazione dell'header {param}: {e}")
         current_headers.update(extracted_headers)
     else:
-        print("URL pulito rilevato - Nessuna estrazione header necessaria")
+        app.logger.info("URL pulito rilevato - Nessuna estrazione header necessaria")
 
     # Gestione .php Daddy
     if clean_url.endswith('.php'):
-        print(f"Rilevato URL .php {clean_url}")
+        app.logger.info(f"Rilevato URL .php {clean_url}")
         channel_id_match = re.search(r'stream-(\d+)\.php', clean_url)
         if channel_id_match:
             channel_id = channel_id_match.group(1)
-            print(f"Channel ID estratto: {channel_id}")
+            app.logger.info(f"Channel ID estratto: {channel_id}")
 
             newkso_headers_for_php_resolution = {
                 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
@@ -137,32 +132,32 @@ def resolve_m3u8_link(url, headers=None):
                 tennis_suffix = channel_id[2:]
                 folder_name = f"wikiten{tennis_suffix}"
                 test_url = f"https://new.newkso.ru/wikihz/{folder_name}/mono.m3u8"
-                print(f"Tentativo canale Tennis: {test_url}")
+                app.logger.info(f"Tentativo canale Tennis: {test_url}")
                 try:
                     proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
                     response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
                                            proxies=proxies, timeout=2.5, allow_redirects=True)
                     if response.status_code == 200:
-                        print(f"Stream Tennis trovato: {test_url}")
+                        app.logger.info(f"Stream Tennis trovato: {test_url}")
                         return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
                 except requests.RequestException as e:
-                    print(f"Errore HEAD per Tennis stream {test_url}: {e}")
+                    app.logger.warning(f"Errore HEAD per Tennis stream {test_url}: {e}")
             
             # Daddy Channels
             else:
                 folder_name = f"premium{channel_id}"
                 for site in daddy_php_sites:
                     test_url = f"{site}{folder_name}/mono.m3u8"
-                    print(f"Tentativo canale Daddy: {test_url}")
+                    app.logger.info(f"Tentativo canale Daddy: {test_url}")
                     try:
                         proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
                         response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
                                                proxies=proxies, timeout=2.5, allow_redirects=True)
                         if response.status_code == 200:
-                            print(f"Stream Daddy trovato: {test_url}")
+                            app.logger.info(f"Stream Daddy trovato: {test_url}")
                             return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
                     except requests.RequestException as e:
-                        print(f"Errore HEAD per Daddy stream {test_url}: {e}")
+                        app.logger.warning(f"Errore HEAD per Daddy stream {test_url}: {e}")
 
     # Fallback: richiesta normale
     try:
@@ -172,33 +167,33 @@ def resolve_m3u8_link(url, headers=None):
             if is_proxied_domain(clean_url):
                 proxies = get_newkso_proxies()
                 if proxies:
-                    print(f"DEBUG [resolve_m3u8_link]: Proxy in uso per {clean_url}", flush=True)
-            print(f"Passo 1: Richiesta a {clean_url}")
+                    app.logger.debug(f"Proxy in uso per {clean_url}")
+            app.logger.info(f"Passo 1: Richiesta a {clean_url}")
             response = session.get(clean_url, headers=current_headers, proxies=proxies, 
                                  allow_redirects=True, timeout=(5, 15))
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
-            print(f"Passo 1 completato. URL finale dopo redirect: {final_url_after_redirects}")
+            app.logger.info(f"Passo 1 completato. URL finale dopo redirect: {final_url_after_redirects}")
 
             if initial_response_text and initial_response_text.strip().startswith('#EXTM3U'):
-                print("Trovato file M3U8 diretto.")
+                app.logger.info("Trovato file M3U8 diretto.")
                 return {
                     "resolved_url": final_url_after_redirects,
                     "headers": current_headers
                 }
             else:
-                print("La risposta iniziale non era un M3U8 diretto.")
+                app.logger.info("La risposta iniziale non era un M3U8 diretto.")
                 return {
                     "resolved_url": clean_url,
                     "headers": current_headers
                 }
 
     except requests.RequestException as e:
-        print(f"Errore durante la richiesta HTTP iniziale: {e}")
+        app.logger.error(f"Errore durante la richiesta HTTP iniziale: {e}")
         return {"resolved_url": clean_url, "headers": current_headers}
     except Exception as e:
-        print(f"Errore generico durante la risoluzione: {e}")
+        app.logger.error(f"Errore generico durante la risoluzione: {e}")
         return {"resolved_url": clean_url, "headers": current_headers}
 
 @app.route('/proxy')
@@ -233,7 +228,7 @@ def proxy():
                     else:
                         exthttp_headers_query_params = ""
                 except Exception as e:
-                    print(f"Errore nel parsing di #EXTHTTP '{line}': {e}")
+                    app.logger.error(f"Errore nel parsing di #EXTHTTP '{line}': {e}")
                     exthttp_headers_query_params = ""
                 modified_lines.append(line)
             elif line and not line.startswith('#'):
@@ -296,7 +291,7 @@ def proxy_m3u():
         if is_proxied_domain(resolved_url):
             proxies = get_newkso_proxies()
             if proxies:
-                print(f"DEBUG [proxy_m3u]: Proxy in uso per GET {resolved_url}", flush=True)
+                app.logger.debug(f"Proxy in uso per GET {resolved_url}")
 
         m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, 
                                    proxies=proxies, allow_redirects=True, timeout=(10, 20))
@@ -350,7 +345,7 @@ def proxy_ts():
     if is_proxied_domain(ts_url):
         proxies = get_newkso_proxies()
         if proxies:
-            print(f"DEBUG [proxy_ts]: Proxy in uso per {ts_url}", flush=True)
+            app.logger.debug(f"Proxy in uso per {ts_url}")
 
     try:
         response = requests.get(ts_url, headers=headers, proxies=proxies, stream=True, 
@@ -384,7 +379,7 @@ def proxy_key():
     if is_proxied_domain(key_url):
         proxies = get_newkso_proxies()
         if proxies:
-            print(f"DEBUG [proxy_key]: Proxy in uso per {key_url}", flush=True)
+            app.logger.debug(f"Proxy in uso per {key_url}")
 
     try:
         response = requests.get(key_url, headers=headers, proxies=proxies, 
