@@ -290,7 +290,7 @@ docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port
 **Con Gunicorn / Python:**
 ```bash
 # Esporta la variabile d'ambiente prima di avviare il server
-export NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+export NEWKSO_PROXY_SOCKS5="socks5://user:pass@host:port"
 gunicorn app:app -w 4 --worker-class gevent ...
 ```
 
