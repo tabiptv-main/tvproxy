@@ -247,16 +247,7 @@ NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
 
 > **Nota:** Per usare i proxy SOCKS5, la dipendenza `requests[socks]` deve essere installata (è già inclusa nel `requirements.txt`).
 
-### 2. Proxy HTTP / HTTPS (Alternativa)
-
-Da usare se non si dispone di un proxy SOCKS5.
-
-- **Variabile HTTP:** `NEWKSO_PROXY_HTTP`
-- **Formato:** `http://proxy.example.com:8080`
-- **Variabile HTTPS:** `NEWKSO_PROXY_HTTPS`
-- **Formato:** `https://proxy.example.com:8080`
-
-### 3. Uso di un file `.env` (per Sviluppo Locale)
+### 2. Uso di un file `.env` (per Sviluppo Locale)
 
 Per chi esegue lo script localmente (con Python o Gunicorn) senza Docker, un modo comodo per gestire le variabili d'ambiente è usare un file `.env`.
 
