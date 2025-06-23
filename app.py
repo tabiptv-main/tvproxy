@@ -4,13 +4,24 @@ from urllib.parse import urlparse, urljoin, quote, unquote
 import re
 import json
 import os
+import urllib3
 
 app = Flask(__name__)
 
 # Configurazione proxy per newkso.ru e daddy_php_sites
 NEWKSO_PROXY_HTTP = os.getenv('NEWKSO_PROXY_HTTP', None)  # es: 'http://proxy.example.com:8080'
 NEWKSO_PROXY_HTTPS = os.getenv('NEWKSO_PROXY_HTTPS', None) # es: 'https://proxy.example.com:8080'
-NEWKSO_PROXY_SOCKS5 = os.getenv('NEWKSO_PROXY_SOCKS5', None) # es: 'socks5://user:pass@host:port' (requires PySocks: pip install "requests[socks]")
+NEWKSO_PROXY_SOCKS5 = os.getenv('NEWKSO_PROXY_SOCKS5', None) # es: 'socks5://user:pass@host:port'
+
+# Impostare su 'false', '0' o 'no' per disabilitare la verifica del certificato SSL quando si utilizza un proxy.
+# NOTA: A causa di una limitazione nella libreria PySocks, questa opzione potrebbe non funzionare come previsto per i proxy SOCKS.
+NEWKSO_PROXY_VERIFY_SSL = os.getenv('NEWKSO_PROXY_VERIFY_SSL', 'true').lower() not in ['false', '0', 'no']
+
+# Sopprimi gli avvisi solo se la verifica SSL è disabilitata
+if not NEWKSO_PROXY_VERIFY_SSL:
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    print("ATTENZIONE: La verifica del certificato SSL è disabilitata. Gli avvisi di richiesta non sicura sono stati soppressi.")
+
 
 def get_newkso_proxies():
     """Restituisce il dizionario dei proxy per newkso.ru e daddy_php_sites se configurati"""
@@ -132,7 +143,8 @@ def resolve_m3u8_link(url, headers=None):
                 try:
                     proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
                     response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
-                                           proxies=proxies, timeout=2.5, allow_redirects=True)
+                                           proxies=proxies, timeout=2.5, allow_redirects=True,
+                                           verify=NEWKSO_PROXY_VERIFY_SSL)
                     if response.status_code == 200:
                         print(f"Stream Tennis trovato: {test_url}")
                         return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -148,7 +160,8 @@ def resolve_m3u8_link(url, headers=None):
                     try:
                         proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
                         response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
-                                               proxies=proxies, timeout=2.5, allow_redirects=True)
+                                               proxies=proxies, timeout=2.5, allow_redirects=True,
+                                               verify=NEWKSO_PROXY_VERIFY_SSL)
                         if response.status_code == 200:
                             print(f"Stream Daddy trovato: {test_url}")
                             return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -159,14 +172,16 @@ def resolve_m3u8_link(url, headers=None):
     try:
         with requests.Session() as session:
             # Determina se usare il proxy per la richiesta finale
+            verify_ssl = True
             proxies = None
             if is_proxied_domain(clean_url):
                 proxies = get_newkso_proxies()
                 if proxies:
                     print(f"DEBUG [resolve_m3u8_link]: Proxy in uso per {clean_url}", flush=True)
+                    verify_ssl = NEWKSO_PROXY_VERIFY_SSL
             print(f"Passo 1: Richiesta a {clean_url}")
-            response = session.get(clean_url, headers=current_headers, proxies=proxies, 
-                                 allow_redirects=True, timeout=(5, 15))
+            response = session.get(clean_url, headers=current_headers, proxies=proxies,
+                                 allow_redirects=True, timeout=(5, 15), verify=verify_ssl)
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
@@ -283,14 +298,17 @@ def proxy_m3u():
         current_headers_for_proxy = result["headers"]
 
         # Determina se usare il proxy per l'URL risolto
+        verify_ssl = True
         proxies = None
         if is_proxied_domain(resolved_url):
             proxies = get_newkso_proxies()
             if proxies:
                 print(f"DEBUG [proxy_m3u]: Proxy in uso per GET {resolved_url}", flush=True)
+                verify_ssl = NEWKSO_PROXY_VERIFY_SSL
 
         m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, 
-                                   proxies=proxies, allow_redirects=True, timeout=(10, 20))
+                                   proxies=proxies, allow_redirects=True, timeout=(10, 20),
+                                   verify=verify_ssl)
         m3u_response.raise_for_status()
         m3u_response.encoding = m3u_response.apparent_encoding or 'utf-8'
         m3u_content = m3u_response.text
@@ -337,15 +355,17 @@ def proxy_ts():
         if key.lower().startswith("h_")
     }
 
+    verify_ssl = True
     proxies = None
     if is_proxied_domain(ts_url):
         proxies = get_newkso_proxies()
         if proxies:
             print(f"DEBUG [proxy_ts]: Proxy in uso per {ts_url}", flush=True)
+            verify_ssl = NEWKSO_PROXY_VERIFY_SSL
 
     try:
         response = requests.get(ts_url, headers=headers, proxies=proxies, stream=True, 
-                              allow_redirects=True, timeout=(10, 30))
+                              allow_redirects=True, timeout=(10, 30), verify=verify_ssl)
         response.raise_for_status()
         
         def generate():
@@ -371,15 +391,17 @@ def proxy_key():
         if key.lower().startswith("h_")
     }
 
+    verify_ssl = True
     proxies = None
     if is_proxied_domain(key_url):
         proxies = get_newkso_proxies()
         if proxies:
             print(f"DEBUG [proxy_key]: Proxy in uso per {key_url}", flush=True)
+            verify_ssl = NEWKSO_PROXY_VERIFY_SSL
 
     try:
         response = requests.get(key_url, headers=headers, proxies=proxies, 
-                              allow_redirects=True, timeout=(5, 15))
+                              allow_redirects=True, timeout=(5, 15), verify=verify_ssl)
         response.raise_for_status()
         
         return Response(response.content, content_type="application/octet-stream")
