@@ -460,4 +460,9 @@ def index():
 if __name__ == '__main__':
     print("--- SCRIPT INIZIALIZZATO, IN ATTESA DI AVVIARE IL SERVER FLASK ---", flush=True)
     print("--- AVVIO DEL SERVER FLASK (MODALITÀ DEBUG) ---", flush=True)
-    app.run(host="0.0.0.0", port=7860, debug=False)
+    
+    # Legge la porta dalla variabile d'ambiente PORT, altrimenti usa 7860 come default
+    port = int(os.environ.get('PORT', 7860))
+    
+    print(f"--- SERVER IN AVVIO SULLA PORTA {port} ---", flush=True)
+    app.run(host="0.0.0.0", port=port, debug=False)
