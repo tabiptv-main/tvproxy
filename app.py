@@ -462,7 +462,7 @@ if __name__ == '__main__':
     print("--- AVVIO DEL SERVER FLASK (MODALITÀ DEBUG) ---", flush=True)
     
     # Legge la porta dalla variabile d'ambiente PORT, altrimenti usa 7860 come default
-    port = int(os.environ.get('PORT', 7860))
+    port = int(os.environ.get('PORT', 3000))
     
     print(f"--- SERVER IN AVVIO SULLA PORTA {port} ---", flush=True)
     app.run(host="0.0.0.0", port=port, debug=False)
