@@ -26,19 +26,18 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
 
 ## ☁️ Piattaforme di Deploy
 
-> ⚠️ **Importante:** Per i canali che lo richiedono (es. DLHD), è **necessario** configurare un proxy **SOCKS5** se non funzionano senza.
-
 ### ▶️ Deploy su Render
 
 1.  Vai su **Projects → New → Web Service → Public Git Repo**.
 2.  Inserisci l'URL del repository: `https://github.com/nzo66/tvproxy` e clicca **Connect**.
 3.  Scegli un nome a piacere per il servizio.
-4.  Imposta **Instance Type** su `Free`.
-5.  **Configura le variabili d'ambiente per il proxy:**
+4.  Imposta **Instance Type** su `Free` (o un'opzione a pagamento per prestazioni migliori).
+5.  **(Opzionale) Configura le variabili d'ambiente per i proxy:**
     *   Nella sezione **Environment**, aggiungi una nuova variabile.
-    *   **Key:** `NEWKSO_PROXY_SOCKS5`
-    *   **Value:** `socks5://user:pass@host:port` (sostituisci con i dati del tuo proxy).
-    *   **Nota:** Puoi inserire più proxy separandoli da una virgola (es. `socks5://proxy1,socks5://proxy2`). Lo script ne sceglierà uno a caso.
+    *   **Key:** `NEWKSO_PROXY` (o `VAVOO_PROXY`, `GENERAL_PROXY`).
+    *   **Value:** `socks5://user:pass@host:port` (sostituisci con i dati del tuo proxy `http`, `https` o `socks5`).
+    *   **Nota:** Puoi inserire più proxy separandoli da una virgola (es. `http://proxy1,socks5://proxy2`). Lo script ne sceglierà uno a caso.
+    *   Per maggiori dettagli, consulta la sezione Configurazione Proxy.
 6.  Clicca su **Create Web Service**.
 
 ### 🤗 Deploy su HuggingFace
@@ -46,11 +45,11 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
 1.  Crea un nuovo **Space**.
 2.  Scegli un nome, seleziona **Docker** come SDK e lascia la visibilità su **Public**.
 3.  Vai su **Files** → `⋮` → **Upload file** e carica il file `DockerfileHF` dal repository, rinominandolo in **Dockerfile**.
-4.  **Configura le variabili d'ambiente per il proxy:**
+4.  **(Opzionale) Configura le variabili d'ambiente per i proxy:**
     *   Vai su **Settings** del tuo Space.
     *   Nella sezione **Secrets**, aggiungi un nuovo secret.
-    *   **Name:** `NEWKSO_PROXY_SOCKS5`
-    *   **Value:** `socks5://proxy1,socks5://proxy2` (sostituisci con i dati dei tuoi proxy).
+    *   **Name:** `NEWKSO_PROXY` (o `VAVOO_PROXY`, `GENERAL_PROXY`).
+    *   **Value:** `socks5://proxy1,http://proxy2` (sostituisci con i dati dei tuoi proxy).
 5.  Una volta completato il deploy, vai su `⋮` → **Embed this Space** per ottenere il **Direct URL**.
 
 > 🔄 **Nota:** Se aggiorni il valore del proxy, ricorda di fare un "Factory Rebuild" dallo Space per applicare le modifiche.
@@ -77,11 +76,11 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
         docker run -d -p 7860:7860 --name tvproxy tvproxy
         ```
 
-    *   **Con un proxy SOCKS5:**
+    *   **Con un proxy:**
         ```bash
-        docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5://proxy1,socks5://proxy2" --name tvproxy tvproxy
+        docker run -d -p 7860:7860 -e NEWKSO_PROXY="socks5://proxy1,http://proxy2" --name tvproxy tvproxy
         ```
-        > ℹ️ Per altri tipi di proxy, consulta la sezione di configurazione.
+        > ℹ️ Per configurare altri proxy (Vavoo, Generale), aggiungi altre variabili `-e`. Consulta la sezione di configurazione.
 
 ### 🐧 Termux (Dispositivi Android)
 
@@ -105,8 +104,9 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     ```
     Incolla la riga seguente nel file, sostituendo i dati del tuo proxy. Salva con `Ctrl+X`, poi `Y` e `Invio`.
     ```dotenv
-    # Esempio per più proxy SOCKS5
-    NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
+    # Esempio di configurazione proxy nel file .env
+    NEWKSO_PROXY="socks5://user:pass@host1:port"
+    VAVOO_PROXY="http://user:pass@host2:port"
     ```
 
 4.  **Avvia il server con Gunicorn:**
@@ -139,7 +139,10 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     ```
     **Contenuto del file `.env`:**
     ```dotenv
-    NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
+    # Proxy per newkso.ru e siti correlati
+    NEWKSO_PROXY="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
+    NEWKSO_SSL_VERIFY=false
+    # Aggiungi qui altre configurazioni (VAVOO_PROXY, GENERAL_PROXY)
     ```
 
 4.  **Avvia il server con Gunicorn:**
@@ -190,25 +193,45 @@ http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8&h_user-age
 
 ## 🔒 Configurazione Proxy
 
-Lo script può utilizzare un proxy per accedere a domini bloccati. La configurazione avviene tramite variabili d'ambiente o un file `.env` (solo per uso locale).
+Lo script supporta una configurazione proxy flessibile per gestire l'accesso a diversi domini. La configurazione avviene tramite variabili d'ambiente o un file `.env`.
 
-### Priorità e Tipi di Proxy
+### Logica di Priorità
 
-1.  **SOCKS5 (Consigliato):** Usato per tutto il traffico verso i domini protetti.
-    -   **Variabile:** `NEWKSO_PROXY_SOCKS5`
-    -   **Formato:** `socks5://proxy1,socks5://proxy2,...`
-    -   Puoi specificare un singolo proxy o una lista di proxy separati da virgola. Lo script ne sceglierà uno a caso per ogni richiesta.
+Il proxy viene selezionato con la seguente priorità:
+1.  **Proxy Specifico per Dominio:** Se l'URL corrisponde a un dominio con un proxy dedicato (es. `newkso.ru`, `vavoo.to`), viene usato quel proxy.
+2.  **Proxy Generale:** Se non corrisponde a nessun dominio specifico e un proxy generale è configurato, viene usato quest'ultimo.
+3.  **Nessun Proxy:** Se nessuna delle condizioni sopra è soddisfatta, la richiesta viene effettuata direttamente.
 
-### Uso del file `.env` (Sviluppo Locale)
+### Variabili d'Ambiente
 
-Per l'uso con Python o Gunicorn (non Docker), crea un file `.env` nella directory principale.
+| Variabile            | Descrizione                                                                                              | Esempio                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `NEWKSO_PROXY`       | Proxy per `newkso.ru` e siti correlati (Daddy).                                                          | `socks5://user:pass@host:port`                     |
+| `NEWKSO_SSL_VERIFY`  | Verifica SSL per `newkso`. **Default: `false`**.                                                          | `false`                                            |
+| `VAVOO_PROXY`        | Proxy dedicato per i domini `vavoo.to`.                                                                  | `http://user:pass@host:port`                       |
+| `VAVOO_SSL_VERIFY`   | Verifica SSL per `vavoo.to`. **Default: `true`**.                                                          | `true`                                             |
+| `GENERAL_PROXY`      | Proxy di fallback per tutto il traffico non coperto dai proxy specifici. Lasciare vuoto per disabilitarlo. | `socks5://user:pass@host:port`                     |
+| `GENERAL_SSL_VERIFY` | Verifica SSL per il proxy generale. **Default: `true`**.                                                   | `true`                                             |
 
-**Esempio di file `.env`:**
+> **Nota:** Tutti i campi proxy (`*_PROXY`) supportano i formati `http`, `https`, `socks5` e `socks5h`. Puoi anche specificare una **lista di proxy separati da virgola**; lo script ne sceglierà uno a caso per ogni richiesta.
+
+### Esempio di file `.env` (per uso locale)
+
+Crea un file `.env` nella directory principale del progetto per configurare facilmente i proxy durante lo sviluppo locale.
+
 ```dotenv
-# Esempio con una lista di proxy SOCKS5
-NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
+# Proxy per newkso.ru (con verifica SSL disabilitata)
+NEWKSO_PROXY="socks5://user:pass@host1:port"
+NEWKSO_SSL_VERIFY=false
+
+# Proxy per i domini vavoo.to
+VAVOO_PROXY="http://user:pass@host2:port"
+VAVOO_SSL_VERIFY=true
+
+# Proxy generico per tutte le altre richieste
+GENERAL_PROXY="socks5://user:pass@host3:port"
+GENERAL_SSL_VERIFY=true
 ```
-> ℹ️ Lo script caricherà automaticamente queste variabili. Per Docker, usa sempre l'opzione `-e`.
 
 ---
 
@@ -235,129 +258,3 @@ NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
 ## 🎉 Enjoy the Stream!
 
 > Ora puoi guardare i tuoi flussi preferiti ovunque, senza restrizioni.
-
-<!--
-[PROMPT_SUGGESTION]Traduci questo file README in inglese.[/PROMPT_SUGGESTION]
-[PROMPT_SUGGESTION]Crea uno script di avvio (`start.sh`) che semplifichi l'esecuzione dei comandi Gunicorn.[/PROMPT_SUGGESTION]
--->
-
-- **Variabile:** `NEWKSO_PROXY_SOCKS5`
-- **Formato:** `socks5h://user:pass@host:port` (o `socks5://...`)
-- **Formato:** `socks5://proxy1,socks5://proxy2,...` (o `socks5h://...`)
-
-> **Nota:** Per usare i proxy SOCKS5, la dipendenza `requests[socks]` deve essere installata (è già inclusa nel `requirements.txt`).
-
-### 2. Uso di un file `.env` (per Sviluppo Locale)
-
-Per chi esegue lo script localmente (con Python o Gunicorn) senza Docker, un modo comodo per gestire le variabili d'ambiente è usare un file `.env`.
-
-1.  **Crea un file** chiamato `.env` nella directory principale del progetto (la stessa di `app.py`).
-2.  **Aggiungi le variabili** al suo interno, una per riga.
-
-**Esempio di file `.env`:**
-```
-# File .env per la configurazione del proxy
-NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
-
-# Oppure per proxy HTTP/HTTPS
-# NEWKSO_PROXY_HTTP="http://proxy.example.com:8080"
-# NEWKSO_PROXY_HTTPS="https://proxy.example.com:8080"
-```
-
-Lo script caricherà automaticamente queste variabili all'avvio, senza bisogno di usare il comando `export`.
-
-> **Nota:** Il file `.env` non viene considerato quando si usa Docker, a meno che non sia configurato esplicitamente. Per Docker, continua a usare l'opzione `-e` come mostrato negli esempi.
-
----
-
-### Esempi di Avvio con Proxy
-
-**Con Docker:**
-```bash
-# Avvia il container Docker passando la variabile d'ambiente per il proxy SOCKS5
-docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port" --name tvproxy tvproxy
-```
-
-**Con Gunicorn / Python:**
-```bash
-# Esporta la variabile d'ambiente prima di avviare il server
-export NEWKSO_PROXY_SOCKS5="socks5://user:pass@host:port"
-gunicorn app:app -w 4 --worker-class gevent ...
-```
-
-## 🛠️ Come Utilizzare
-
-Assicurati di sostituire i placeholder come `<server-ip>` con l'indirizzo IP o l'hostname effettivo del tuo server e `<URL_...>` con gli URL specifici.
-
----
-
-### 1. Proxy per Liste M3U Complete 📡
-
-Questo endpoint è progettato per proxare l'intera lista M3U. È particolarmente utile per garantire compatibilità e stabilità, con supporto menzionato per formati come Vavoo e Daddylive.
-
-**Formato URL:**
-```text
-http://<server-ip>:7860/proxy?url=<URL_LISTA_M3U>
-```
-
-**Dove:**
--   `<server-ip>`: L'indirizzo IP o hostname del tuo server proxy.
--   `<URL_LISTA_M3U>`: L'URL completo della lista M3U che vuoi proxare.
-
-> 📝 **Nota:** Questo endpoint è ideale per gestire l'intera collezione di flussi contenuta in un file M3U.
-
----
-
-### 2. Proxy per Singoli Flussi M3U8 (con Headers Personalizzati) 📺✨
-
-Questo endpoint è specifico per proxare singoli flussi video `.m3u8`. La sua caratteristica distintiva è la capacità di inoltrare headers HTTP personalizzati, essenziale per scenari che richiedono autenticazione specifica o per simulare richieste da client particolari.
-
-**Formato URL Base:**
-```text
-http://<server-ip>:7860/proxy/m3u?url=<URL_FLUSSO_M3U8>
-```
-
-**Esempio:**
-```text
-http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8
-```
-
-**Dove:**
--   `<server-ip>`: L'indirizzo IP o hostname del tuo server proxy.
--   `<URL_FLUSSO_M3U8>`: L'URL completo del singolo flusso M3U8.
-
-#### 🎯 Aggiungere Headers HTTP Personalizzati (Opzionale)
-
-Per includere headers personalizzati nella richiesta al flusso M3U8, accodali all'URL del proxy. Ogni header deve essere prefissato da `&h_`, seguito dal nome dell'header, un segno di uguale (`=`), e il valore dell'header.
-
-**Formato per gli Headers:**
-```text
-&h_<NOME_HEADER>=<VALORE_HEADER>
-```
-
-**Esempio con Headers Personalizzati:**
-```text
-http://<server-ip>:7860/proxy/m3u?url=https://example.com/stream.m3u8&h_user-agent=Mozilla/5.0...&h_referer=https://ilovetoplay.xyz/&h_origin=https://ilovetoplay.xyz
-```
-
-> ⚠️ **Attenzione:**
-> - Ricorda di sostituire `Mozilla/5.0...` con lo User-Agent completo che intendi utilizzare.
-> - Se i valori degli header contengono caratteri speciali (es. spazi, due punti), assicurati che siano correttamente URL-encoded per evitare errori.
-
----
-
-## ✅ Caratteristiche
-
-- 📁 Supporta **.m3u** e **.m3u8** automaticamente
-- 🧾 Inoltra gli **HTTP Headers** necessari (Auth, Referer, etc.)
-- 🔓 Supera restrizioni geografiche o di accesso
-- 🖥️ Compatibile con **qualsiasi player IPTV**
-- 🐳 Totalmente dockerizzato, pronto per il deploy
-- 🐍 Avviabile anche direttamente con **Python**
-
----
-
-## 🎉 Fine!
-
-> Ora puoi guardare flussi M3U8 ovunque, senza restrizioni!  
-> Enjoy the Stream 🚀
