@@ -194,16 +194,10 @@ Lo script può utilizzare un proxy per accedere a domini bloccati. La configuraz
 
 ### Priorità e Tipi di Proxy
 
-1.  **SOCKS5 (Consigliato):** Massima priorità. Usato per tutto il traffico verso i domini protetti.
+1.  **SOCKS5 (Consigliato):** Usato per tutto il traffico verso i domini protetti.
     -   **Variabile:** `NEWKSO_PROXY_SOCKS5`
     -   **Formato:** `socks5://proxy1,socks5://proxy2,...`
     -   Puoi specificare un singolo proxy o una lista di proxy separati da virgola. Lo script ne sceglierà uno a caso per ogni richiesta.
-
-2.  **HTTP / HTTPS:** Alternativa se non hai un proxy SOCKS5.
-    -   **Variabile HTTP:** `NEWKSO_PROXY_HTTP`
-    -   **Formato:** `http://proxy.example.com:8080`
-    -   **Variabile HTTPS:** `NEWKSO_PROXY_HTTPS`
-    -   **Formato:** `https://proxy.example.com:8080`
 
 ### Uso del file `.env` (Sviluppo Locale)
 
@@ -213,10 +207,6 @@ Per l'uso con Python o Gunicorn (non Docker), crea un file `.env` nella director
 ```dotenv
 # Esempio con una lista di proxy SOCKS5
 NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
-
-# Oppure per proxy HTTP/HTTPS (commentati)
-# NEWKSO_PROXY_HTTP="http://proxy.example.com:8080"
-# NEWKSO_PROXY_HTTPS="https://proxy.example.com:8080"
 ```
 > ℹ️ Lo script caricherà automaticamente queste variabili. Per Docker, usa sempre l'opzione `-e`.
 
