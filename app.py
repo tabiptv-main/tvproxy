@@ -21,7 +21,6 @@ def get_newkso_proxies():
         if ',' in NEWKSO_PROXY_SOCKS5:
             proxy_list = [p.strip() for p in NEWKSO_PROXY_SOCKS5.split(',')]
             selected_proxy = random.choice(proxy_list)
-            print(f"DEBUG: Selezionato proxy SOCKS5 casuale: {selected_proxy}", flush=True)
             proxies['http'] = selected_proxy
             proxies['https'] = selected_proxy
         else:
