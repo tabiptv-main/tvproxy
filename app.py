@@ -6,10 +6,19 @@ import json
 import os
 import random
 from dotenv import load_dotenv
+from cachetools import TTLCache, LRUCache
 
 load_dotenv()  # Carica le variabili dal file .env
 
 app = Flask(__name__)
+
+# --- Configurazione Cache ---
+# Cache per le playlist M3U8. TTL di 5 secondi per garantire l'aggiornamento dei live stream.
+M3U8_CACHE = TTLCache(maxsize=200, ttl=5)
+# Cache per i segmenti TS. LRU (Least Recently Used) per mantenere i segmenti più richiesti.
+TS_CACHE = LRUCache(maxsize=1000)  # Mantiene in memoria i 1000 segmenti usati più di recente
+# Cache per le chiavi di decriptazione.
+KEY_CACHE = LRUCache(maxsize=200)
 # --- Configurazione Proxy ---
 # I proxy possono essere in formato http, https, socks5, socks5h. Es: 'socks5://user:pass@host:port'
 # È possibile specificare una lista di proxy separati da virgola. Verrà scelto uno a caso.
@@ -276,10 +285,23 @@ def proxy():
 
 @app.route('/proxy/m3u')
 def proxy_m3u():
-    """Proxy per file M3U e M3U8 con supporto per proxy newkso.ru e daddy_php_sites"""
+    """Proxy per file M3U e M3U8 con supporto per proxy e caching."""
     m3u_url = request.args.get('url', '').strip()
     if not m3u_url:
         return "Errore: Parametro 'url' mancante", 400
+
+    # Crea una chiave univoca per la cache basata sull'URL e sugli header specifici
+    # Questo assicura che richieste con header diversi non usino la stessa cache
+    cache_key_headers = "&".join(sorted([f"{k}={v}" for k, v in request.args.items() if k.lower().startswith("h_")]))
+    cache_key = f"{m3u_url}|{cache_key_headers}"
+
+    # Controlla se la risposta è già in cache
+    if cache_key in M3U8_CACHE:
+        app.logger.info(f"Cache HIT per M3U8: {m3u_url}")
+        cached_response = M3U8_CACHE[cache_key]
+        return Response(cached_response, content_type="application/vnd.apple.mpegurl; charset=utf-8")
+    
+    app.logger.info(f"Cache MISS per M3U8: {m3u_url}")
 
     default_headers = {
         "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/33.0 Mobile/15E148 Safari/605.1.15",
@@ -339,6 +361,10 @@ def proxy_m3u():
             modified_m3u8.append(line)
 
         modified_m3u8_content = "\n".join(modified_m3u8)
+        
+        # Salva il contenuto modificato nella cache prima di restituirlo
+        M3U8_CACHE[cache_key] = modified_m3u8_content
+        
         return Response(modified_m3u8_content, content_type="application/vnd.apple.mpegurl; charset=utf-8")
 
     except requests.RequestException as e:
@@ -348,10 +374,18 @@ def proxy_m3u():
 
 @app.route('/proxy/ts')
 def proxy_ts():
-    """Proxy per segmenti .TS con headers personalizzati e supporto proxy newkso.ru e daddy_php_sites"""
+    """Proxy per segmenti .TS con caching, headers personalizzati e supporto proxy."""
     ts_url = request.args.get('url', '').strip()
     if not ts_url:
         return "Errore: Parametro 'url' mancante", 400
+
+    # Controlla se il segmento è in cache
+    if ts_url in TS_CACHE:
+        app.logger.info(f"Cache HIT per TS: {ts_url}")
+        # Restituisce il contenuto direttamente dalla cache
+        return Response(TS_CACHE[ts_url], content_type="video/mp2t")
+
+    app.logger.info(f"Cache MISS per TS: {ts_url}")
 
     headers = {
         unquote(key[2:]).replace("_", "-"): unquote(value).strip()
@@ -364,25 +398,34 @@ def proxy_ts():
         app.logger.debug(f"Proxy in uso per {ts_url}")
 
     try:
-        response = requests.get(ts_url, headers=headers, proxies=proxy_config['proxies'], stream=True, allow_redirects=True, timeout=(10, 30), verify=proxy_config['verify'])
+        # Nota: stream=False per scaricare l'intero segmento e poterlo mettere in cache
+        response = requests.get(ts_url, headers=headers, proxies=proxy_config['proxies'], stream=False, allow_redirects=True, timeout=(10, 30), verify=proxy_config['verify'])
         response.raise_for_status()
         
-        def generate():
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
+        ts_content = response.content
         
-        return Response(generate(), content_type="video/mp2t")
+        # Salva il contenuto del segmento nella cache
+        if ts_content:
+            TS_CACHE[ts_url] = ts_content
+        
+        return Response(ts_content, content_type="video/mp2t")
     
     except requests.RequestException as e:
         return f"Errore durante il download del segmento TS: {str(e)}", 500
 
 @app.route('/proxy/key')
 def proxy_key():
-    """Proxy per la chiave AES-128 con header personalizzati e supporto proxy newkso.ru e daddy_php_sites"""
+    """Proxy per la chiave AES-128 con caching, header personalizzati e supporto proxy."""
     key_url = request.args.get('url', '').strip()
     if not key_url:
         return "Errore: Parametro 'url' mancante per la chiave", 400
+
+    # Controlla se la chiave è in cache
+    if key_url in KEY_CACHE:
+        app.logger.info(f"Cache HIT per KEY: {key_url}")
+        return Response(KEY_CACHE[key_url], content_type="application/octet-stream")
+
+    app.logger.info(f"Cache MISS per KEY: {key_url}")
 
     headers = {
         unquote(key[2:]).replace("_", "-"): unquote(value).strip()
@@ -399,7 +442,12 @@ def proxy_key():
                               allow_redirects=True, timeout=(10, 20), verify=proxy_config['verify'])
         response.raise_for_status()
         
-        return Response(response.content, content_type="application/octet-stream")
+        key_content = response.content
+        
+        # Salva la chiave nella cache
+        KEY_CACHE[key_url] = key_content
+        
+        return Response(key_content, content_type="application/octet-stream")
     
     except requests.RequestException as e:
         return f"Errore durante il download della chiave: {str(e)}", 500
