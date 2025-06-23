@@ -10,25 +10,71 @@ from dotenv import load_dotenv
 load_dotenv()  # Carica le variabili dal file .env
 
 app = Flask(__name__)
-# Configurazione proxy per newkso.ru e daddy_php_sites (solo SOCKS5)
-NEWKSO_PROXY_SOCKS5 = os.getenv('NEWKSO_PROXY_SOCKS5', None) # es: 'socks5://user:pass@host:port')
+# --- Configurazione Proxy ---
+# I proxy possono essere in formato http, https, socks5, socks5h. Es: 'socks5://user:pass@host:port'
+# È possibile specificare una lista di proxy separati da virgola. Verrà scelto uno a caso.
+NEWKSO_PROXY = os.getenv('NEWKSO_PROXY', None)
 NEWKSO_SSL_VERIFY = os.getenv('NEWKSO_SSL_VERIFY', 'false').lower() == 'true'
 
-# Disabilita gli avvisi di richiesta non sicura se la verifica SSL è disattivata
-if not NEWKSO_SSL_VERIFY:
+VAVOO_PROXY = os.getenv('VAVOO_PROXY', None)
+VAVOO_SSL_VERIFY = os.getenv('VAVOO_SSL_VERIFY', 'false').lower() == 'true'
+
+GENERAL_PROXY = os.getenv('GENERAL_PROXY', None)
+GENERAL_SSL_VERIFY = os.getenv('GENERAL_SSL_VERIFY', 'false').lower() == 'true'
+
+# Disabilita gli avvisi di richiesta non sicura se la verifica SSL è disattivata per QUALSIASI proxy
+if not all([NEWKSO_SSL_VERIFY, VAVOO_SSL_VERIFY, GENERAL_SSL_VERIFY]):
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def get_newkso_proxies():
-    """Restituisce il dizionario dei proxy per newkso.ru e daddy_php_sites se configurati."""
-    proxies = {}
-    if NEWKSO_PROXY_SOCKS5:
-        # Sceglie un proxy a caso dalla lista (anche se ce n'è solo uno)
-        proxy_list = [p.strip() for p in NEWKSO_PROXY_SOCKS5.split(',')]
-        selected_proxy = random.choice(proxy_list)
-        proxies['http'] = selected_proxy
-        proxies['https'] = selected_proxy
-    return proxies or None
+DADDY_PHP_DOMAINS_MATCH = [
+    "new.newkso.ru/wind/",
+    "new.newkso.ru/ddy6/",
+    "new.newkso.ru/zeko/",
+    "new.newkso.ru/nfs/",
+    "new.newkso.ru/dokko1/",
+]
+
+DADDY_PHP_SITES_URLS = [
+    "https://new.newkso.ru/wind/",
+    "https://new.newkso.ru/ddy6/",
+    "https://new.newkso.ru/zeko/",
+    "https://new.newkso.ru/nfs/",
+    "https://new.newkso.ru/dokko1/",
+]
+
+def _get_proxy_dict(proxy_env_var):
+    """Helper per creare un dizionario di proxy da una variabile d'ambiente."""
+    if not proxy_env_var:
+        return None
+    proxy_list = [p.strip() for p in proxy_env_var.split(',')]
+    selected_proxy = random.choice(proxy_list)
+    # la libreria requests gestisce lo schema (http, https, socks5, socks5h) dall'URL del proxy
+    return {'http': selected_proxy, 'https': selected_proxy}
+
+def get_proxy_config_for_url(url):
+    """
+    Restituisce la configurazione del proxy (dizionario proxy e flag di verifica SSL) per un dato URL.
+    Supporta proxy specifici per dominio (newkso, vavoo) e un proxy generale.
+    """
+    lower_url = url.lower()
+    parsed_url = urlparse(lower_url)
+
+    # 1. newkso.ru e daddy_php_sites
+    is_newkso = "newkso.ru" in parsed_url.netloc or any(domain in lower_url for domain in DADDY_PHP_DOMAINS_MATCH)
+    if is_newkso and NEWKSO_PROXY:
+        return {"proxies": _get_proxy_dict(NEWKSO_PROXY), "verify": NEWKSO_SSL_VERIFY}
+
+    # 2. vavoo.to
+    if "vavoo.to" in parsed_url.netloc and VAVOO_PROXY:
+        return {"proxies": _get_proxy_dict(VAVOO_PROXY), "verify": VAVOO_SSL_VERIFY}
+
+    # 3. Proxy Generale (se non corrisponde a domini specifici)
+    if GENERAL_PROXY:
+        return {"proxies": _get_proxy_dict(GENERAL_PROXY), "verify": GENERAL_SSL_VERIFY}
+
+    # 4. Nessun proxy
+    return {"proxies": None, "verify": True}
 
 def detect_m3u_type(content):
     """Rileva se è un M3U (lista IPTV) o un M3U8 (flusso HLS)"""
@@ -44,23 +90,6 @@ def replace_key_uri(line, headers_query):
         proxied_key_url = f"/proxy/key?url={quote(key_url)}&{headers_query}"
         return line.replace(key_url, proxied_key_url)
     return line
-
-def is_proxied_domain(url):
-    """Restituisce True se l'URL è per newkso.ru o per daddy_php_sites"""
-    daddy_php_domains = [
-        "new.newkso.ru/wind/",
-        "new.newkso.ru/ddy6/",
-        "new.newkso.ru/zeko/",
-        "new.newkso.ru/nfs/",
-        "new.newkso.ru/dokko1/",
-    ]
-    parsed = urlparse(url.lower())
-    if "newkso.ru" in parsed.netloc:
-        return True
-    for domain in daddy_php_domains:
-        if domain in url.lower():
-            return True
-    return False
 
 def resolve_m3u8_link(url, headers=None):
     """
@@ -80,15 +109,6 @@ def resolve_m3u8_link(url, headers=None):
     clean_url = url
     extracted_headers = {}
 
-    # Siti Daddy PHP
-    daddy_php_sites = [
-        "https://new.newkso.ru/wind/",
-        "https://new.newkso.ru/ddy6/",
-        "https://new.newkso.ru/zeko/",
-        "https://new.newkso.ru/nfs/",
-        "https://new.newkso.ru/dokko1/",
-    ]
-    
     # Estrazione header da URL
     if '&h_' in url or '%26h_' in url:
         app.logger.info("Rilevati parametri header nell'URL - Estrazione in corso...")
@@ -135,10 +155,10 @@ def resolve_m3u8_link(url, headers=None):
                 test_url = f"https://new.newkso.ru/wikihz/{folder_name}/mono.m3u8"
                 app.logger.info(f"Tentativo canale Tennis: {test_url}")
                 try:
-                    proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
+                    proxy_config = get_proxy_config_for_url(test_url)
                     response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
-                                           proxies=proxies, timeout=5, allow_redirects=True,
-                                           verify=NEWKSO_SSL_VERIFY)
+                                           proxies=proxy_config['proxies'], timeout=5, allow_redirects=True,
+                                           verify=proxy_config['verify'])
                     if response.status_code == 200:
                         app.logger.info(f"Stream Tennis trovato: {test_url}")
                         return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -148,14 +168,14 @@ def resolve_m3u8_link(url, headers=None):
             # Daddy Channels
             else:
                 folder_name = f"premium{channel_id}"
-                for site in daddy_php_sites:
+                for site in DADDY_PHP_SITES_URLS:
                     test_url = f"{site}{folder_name}/mono.m3u8"
                     app.logger.info(f"Tentativo canale Daddy: {test_url}")
                     try:
-                        proxies = get_newkso_proxies() # Il proxy è sempre necessario per newkso.ru
+                        proxy_config = get_proxy_config_for_url(test_url)
                         response = requests.head(test_url, headers=newkso_headers_for_php_resolution, 
-                                               proxies=proxies, timeout=5, allow_redirects=True,
-                                               verify=NEWKSO_SSL_VERIFY)
+                                               proxies=proxy_config['proxies'], timeout=5, allow_redirects=True,
+                                               verify=proxy_config['verify'])
                         if response.status_code == 200:
                             app.logger.info(f"Stream Daddy trovato: {test_url}")
                             return {"resolved_url": test_url, "headers": newkso_headers_for_php_resolution}
@@ -165,15 +185,12 @@ def resolve_m3u8_link(url, headers=None):
     # Fallback: richiesta normale
     try:
         with requests.Session() as session:
-            # Determina se usare il proxy per la richiesta finale
-            proxies = None
-            if is_proxied_domain(clean_url):
-                proxies = get_newkso_proxies()
-                if proxies:
-                    app.logger.debug(f"Proxy in uso per {clean_url}")
+            proxy_config = get_proxy_config_for_url(clean_url)
+            if proxy_config['proxies']:
+                app.logger.debug(f"Proxy in uso per {clean_url}")
             app.logger.info(f"Passo 1: Richiesta a {clean_url}")
-            response = session.get(clean_url, headers=current_headers, proxies=proxies, 
-                                 allow_redirects=True, timeout=(10, 20), verify=NEWKSO_SSL_VERIFY)
+            response = session.get(clean_url, headers=current_headers, proxies=proxy_config['proxies'], 
+                                 allow_redirects=True, timeout=(10, 20), verify=proxy_config['verify'])
             response.raise_for_status()
             initial_response_text = response.text
             final_url_after_redirects = response.url
@@ -289,16 +306,13 @@ def proxy_m3u():
         resolved_url = result["resolved_url"]
         current_headers_for_proxy = result["headers"]
 
-        # Determina se usare il proxy per l'URL risolto
-        proxies = None
-        if is_proxied_domain(resolved_url):
-            proxies = get_newkso_proxies()
-            if proxies:
-                app.logger.debug(f"Proxy in uso per GET {resolved_url}")
+        proxy_config = get_proxy_config_for_url(resolved_url)
+        if proxy_config['proxies']:
+            app.logger.debug(f"Proxy in uso per GET {resolved_url}")
 
         m3u_response = requests.get(resolved_url, headers=current_headers_for_proxy, 
-                                   proxies=proxies, allow_redirects=True, timeout=(10, 20),
-                                   verify=NEWKSO_SSL_VERIFY)
+                                   proxies=proxy_config['proxies'], allow_redirects=True, timeout=(10, 20),
+                                   verify=proxy_config['verify'])
         m3u_response.raise_for_status()
         m3u_response.encoding = m3u_response.apparent_encoding or 'utf-8'
         m3u_content = m3u_response.text
@@ -345,15 +359,12 @@ def proxy_ts():
         if key.lower().startswith("h_")
     }
 
-    proxies = None
-    if is_proxied_domain(ts_url):
-        proxies = get_newkso_proxies()
-        if proxies:
-            app.logger.debug(f"Proxy in uso per {ts_url}")
+    proxy_config = get_proxy_config_for_url(ts_url)
+    if proxy_config['proxies']:
+        app.logger.debug(f"Proxy in uso per {ts_url}")
 
     try:
-        response = requests.get(ts_url, headers=headers, proxies=proxies, stream=True, 
-                              allow_redirects=True, timeout=(10, 30), verify=NEWKSO_SSL_VERIFY)
+        response = requests.get(ts_url, headers=headers, proxies=proxy_config['proxies'], stream=True, allow_redirects=True, timeout=(10, 30), verify=proxy_config['verify'])
         response.raise_for_status()
         
         def generate():
@@ -379,16 +390,13 @@ def proxy_key():
         if key.lower().startswith("h_")
     }
 
-    proxies = None
-    if is_proxied_domain(key_url):
-        proxies = get_newkso_proxies()
-        if proxies:
-            app.logger.debug(f"Proxy in uso per {key_url}")
+    proxy_config = get_proxy_config_for_url(key_url)
+    if proxy_config['proxies']:
+        app.logger.debug(f"Proxy in uso per {key_url}")
 
     try:
-        response = requests.get(key_url, headers=headers, proxies=proxies, 
-                              allow_redirects=True, timeout=(10, 20),
-                              verify=NEWKSO_SSL_VERIFY)
+        response = requests.get(key_url, headers=headers, proxies=proxy_config['proxies'], 
+                              allow_redirects=True, timeout=(10, 20), verify=proxy_config['verify'])
         response.raise_for_status()
         
         return Response(response.content, content_type="application/octet-stream")
