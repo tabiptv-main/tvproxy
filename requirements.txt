@@ -2,3 +2,4 @@ flask
 requests
 gunicorn[gevent]
 requests[socks]
+python-dotenv
