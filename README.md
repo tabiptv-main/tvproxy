@@ -38,6 +38,7 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     *   Nella sezione **Environment**, aggiungi una nuova variabile.
     *   **Key:** `NEWKSO_PROXY_SOCKS5`
     *   **Value:** `socks5h://user:pass@host:port` (sostituisci con i dati del tuo proxy).
+    *   **Nota:** Puoi inserire più proxy separandoli da una virgola (es. `socks5://proxy1,socks5://proxy2`). Lo script ne sceglierà uno a caso.
 6.  Clicca su **Create Web Service**.
 
 ### 🤗 Deploy su HuggingFace
@@ -49,7 +50,7 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     *   Vai su **Settings** del tuo Space.
     *   Nella sezione **Secrets**, aggiungi un nuovo secret.
     *   **Name:** `NEWKSO_PROXY_SOCKS5`
-    *   **Value:** `socks5h://user:pass@host:port` (sostituisci con i dati del tuo proxy).
+    *   **Value:** `socks5://proxy1,socks5://proxy2` (sostituisci con i dati dei tuoi proxy).
 5.  Una volta completato il deploy, vai su `⋮` → **Embed this Space** per ottenere il **Direct URL**.
 
 > 🔄 **Nota:** Se aggiorni il valore del proxy, ricorda di fare un "Factory Rebuild" dallo Space per applicare le modifiche.
@@ -78,7 +79,7 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
 
     *   **Con un proxy SOCKS5:**
         ```bash
-        docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port" --name tvproxy tvproxy
+        docker run -d -p 7860:7860 -e NEWKSO_PROXY_SOCKS5="socks5://proxy1,socks5://proxy2" --name tvproxy tvproxy
         ```
         > ℹ️ Per altri tipi di proxy, consulta la sezione di configurazione.
 
@@ -104,8 +105,8 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     ```
     Incolla la riga seguente nel file, sostituendo i dati del tuo proxy. Salva con `Ctrl+X`, poi `Y` e `Invio`.
     ```dotenv
-    # Esempio di contenuto per il file .env
-    NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+    # Esempio per più proxy SOCKS5
+    NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
     ```
 
 4.  **Avvia il server con Gunicorn:**
@@ -138,7 +139,7 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     ```
     **Contenuto del file `.env`:**
     ```dotenv
-    NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+    NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
     ```
 
 4.  **Avvia il server con Gunicorn:**
@@ -195,7 +196,8 @@ Lo script può utilizzare un proxy per accedere a domini bloccati. La configuraz
 
 1.  **SOCKS5 (Consigliato):** Massima priorità. Usato per tutto il traffico verso i domini protetti.
     -   **Variabile:** `NEWKSO_PROXY_SOCKS5`
-    -   **Formato:** `socks5h://user:pass@host:port`
+    -   **Formato:** `socks5://proxy1,socks5://proxy2,...`
+    -   Puoi specificare un singolo proxy o una lista di proxy separati da virgola. Lo script ne sceglierà uno a caso per ogni richiesta.
 
 2.  **HTTP / HTTPS:** Alternativa se non hai un proxy SOCKS5.
     -   **Variabile HTTP:** `NEWKSO_PROXY_HTTP`
@@ -209,8 +211,8 @@ Per l'uso con Python o Gunicorn (non Docker), crea un file `.env` nella director
 
 **Esempio di file `.env`:**
 ```dotenv
-# File .env per la configurazione del proxy
-NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
+# Esempio con una lista di proxy SOCKS5
+NEWKSO_PROXY_SOCKS5="socks5://proxy1:1080,socks5://user:pass@proxy2:1080"
 
 # Oppure per proxy HTTP/HTTPS (commentati)
 # NEWKSO_PROXY_HTTP="http://proxy.example.com:8080"
@@ -251,12 +253,13 @@ NEWKSO_PROXY_SOCKS5="socks5h://user:pass@host:port"
 
 - **Variabile:** `NEWKSO_PROXY_SOCKS5`
 - **Formato:** `socks5h://user:pass@host:port` (o `socks5://...`)
+- **Formato:** `socks5://proxy1,socks5://proxy2,...` (o `socks5h://...`)
 
 > **Nota:** Per usare i proxy SOCKS5, la dipendenza `requests[socks]` deve essere installata (è già inclusa nel `requirements.txt`).
 
 ### 2. Proxy HTTP / HTTPS (Alternativa)
 
-Da usare se non si dispone di un proxy SOCKS5. È possibile impostarne anche solo una.
+Da usare se non si dispone di un proxy SOCKS5.
 
 - **Variabile HTTP:** `NEWKSO_PROXY_HTTP`
 - **Formato:** `http://proxy.example.com:8080`
