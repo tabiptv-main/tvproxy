@@ -40,16 +40,16 @@ Un server proxy leggero e dockerizzato basato su **Flask** e **Requests**, proge
     *   Per maggiori dettagli, consulta la sezione Configurazione Proxy.
 6.  Clicca su **Create Web Service**.
 
-### 🤗 Deploy su HuggingFace
+### 🤗 Deploy su HuggingFace (non supporta i proxy)
 
 1.  Crea un nuovo **Space**.
 2.  Scegli un nome, seleziona **Docker** come SDK e lascia la visibilità su **Public**.
 3.  Vai su **Files** → `⋮` → **Upload file** e carica il file `DockerfileHF` dal repository, rinominandolo in **Dockerfile**.
-4.  **(Opzionale) Configura le variabili d'ambiente per i proxy:**
+4.  **Configura le variabili d'ambiente per la porta:**
     *   Vai su **Settings** del tuo Space.
     *   Nella sezione **Secrets**, aggiungi un nuovo secret.
-    *   **Name:** `NEWKSO_PROXY` (o `VAVOO_PROXY`, `GENERAL_PROXY`).
-    *   **Value:** `socks5://proxy1,http://proxy2` (sostituisci con i dati dei tuoi proxy).
+    *   **Name:** `PORT`
+    *   **Value:** `7860`
 5.  Una volta completato il deploy, vai su `⋮` → **Embed this Space** per ottenere il **Direct URL**.
 
 > 🔄 **Nota:** Se aggiorni il valore del proxy, ricorda di fare un "Factory Rebuild" dallo Space per applicare le modifiche.
