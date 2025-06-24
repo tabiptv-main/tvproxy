@@ -239,7 +239,8 @@ def proxy():
         m3u_content = response.text
         
         modified_lines = []
-        exthttp_headers_query_params = ""
+        # This list will accumulate header parameters for the *next* stream URL
+        current_stream_headers_params = [] 
 
         for line in m3u_content.splitlines():
             line = line.strip()
@@ -247,28 +248,66 @@ def proxy():
                 try:
                     json_str = line.split(':', 1)[1].strip()
                     headers_dict = json.loads(json_str)
-                    temp_params = []
                     for key, value in headers_dict.items():
                         encoded_key = quote(quote(key))
                         encoded_value = quote(quote(str(value)))
-                        temp_params.append(f"h_{encoded_key}={encoded_value}")
-                    if temp_params:
-                        exthttp_headers_query_params = "%26" + "%26".join(temp_params)
-                    else:
-                        exthttp_headers_query_params = ""
+                        current_stream_headers_params.append(f"h_{encoded_key}={encoded_value}")
                 except Exception as e:
                     app.logger.error(f"Errore nel parsing di #EXTHTTP '{line}': {e}")
-                    exthttp_headers_query_params = ""
                 modified_lines.append(line)
+            
+            elif line.startswith('#EXTVLCOPT:'):
+                try:
+                    options_str = line.split(':', 1)[1].strip()
+                    # Split by comma, then iterate through key=value pairs
+                    for opt_pair in options_str.split(','):
+                        opt_pair = opt_pair.strip()
+                        if '=' in opt_pair:
+                            key, value = opt_pair.split('=', 1)
+                            key = key.strip()
+                            value = value.strip().strip('"') # Remove potential quotes
+                            
+                            header_key = None
+                            if key.lower() == 'http-user-agent':
+                                header_key = 'User-Agent'
+                            elif key.lower() == 'http-referer':
+                                header_key = 'Referer'
+                            elif key.lower() == 'http-cookie':
+                                header_key = 'Cookie'
+                            elif key.lower() == 'http-header': # For generic http-header option
+                                # This handles cases like http-header=X-Custom: Value
+                                full_header_value = value
+                                if ':' in full_header_value:
+                                    header_name, header_val = full_header_value.split(':', 1)
+                                    header_key = header_name.strip()
+                                    value = header_val.strip()
+                                else:
+                                    app.logger.warning(f"Malformed http-header option in EXTVLCOPT: {opt_pair}")
+                                    continue # Skip malformed header
+                            
+                            if header_key:
+                                encoded_key = quote(quote(header_key))
+                                encoded_value = quote(quote(value))
+                                current_stream_headers_params.append(f"h_{encoded_key}={encoded_value}")
+                            
+                except Exception as e:
+                    app.logger.error(f"Errore nel parsing di #EXTVLCOPT '{line}': {e}")
+                modified_lines.append(line) # Keep the original EXTVLCOPT line in the output
             elif line and not line.startswith('#'):
                 if 'pluto.tv' in line.lower():
                     modified_lines.append(line)
-                    exthttp_headers_query_params = ""
                 else:
                     encoded_line = quote(line, safe='')
-                    modified_line = f"http://{server_ip}/proxy/m3u?url={encoded_line}{exthttp_headers_query_params}"
+                    # Construct the headers query string from accumulated parameters
+                    headers_query_string = ""
+                    if current_stream_headers_params:
+                        headers_query_string = "%26" + "%26".join(current_stream_headers_params)
+                    
+                    modified_line = f"http://{server_ip}/proxy/m3u?url={encoded_line}{headers_query_string}"
                     modified_lines.append(modified_line)
-                    exthttp_headers_query_params = ""
+                
+                # Reset headers for the next stream URL
+                current_stream_headers_params = [] 
             else:
                 modified_lines.append(line)
         
@@ -458,11 +497,4 @@ def index():
     return "Proxy started!"
 
 if __name__ == '__main__':
-    print("--- SCRIPT INIZIALIZZATO, IN ATTESA DI AVVIARE IL SERVER FLASK ---", flush=True)
-    print("--- AVVIO DEL SERVER FLASK (MODALITÀ DEBUG) ---", flush=True)
-    
-    # Legge la porta dalla variabile d'ambiente PORT, altrimenti usa 7860 come default
-    port = int(os.environ.get('PORT', 3000))
-    
-    print(f"--- SERVER IN AVVIO SULLA PORTA {port} ---", flush=True)
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=7860, debug=False)
