@@ -65,6 +65,7 @@ def get_proxy_for_url(url):
         pass
     import random
     chosen_proxy = random.choice(PROXY_LIST)
+    print(f"Kullanılan proxy: {chosen_proxy}")
     return {'http': chosen_proxy, 'https': chosen_proxy}
 
 setup_proxies()
@@ -115,9 +116,12 @@ def proxy_m3u():
         if key.lower().startswith("h_")
     }
     default_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36 Edg/137.0.0.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0",
         "Referer": "https://oha.to/",
-        "Origin": "https://oha.to"
+        "Origin": "https://oha.to",
+        "Accept": "application/vnd.apple.mpegurl, text/html, */*",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-US,en;q=0.9"
     }
     headers = {**default_headers, **headers}
 
@@ -125,9 +129,11 @@ def proxy_m3u():
         print(f"M3U8 içeriği alınıyor: {m3u_url}")
         print(f"Kullanılan başlıklar: {headers}")
         m3u_response = requests.get(m3u_url, headers=headers, allow_redirects=True, timeout=REQUEST_TIMEOUT, proxies=get_proxy_for_url(m3u_url), verify=VERIFY_SSL)
+        print(f"Sunucu yanıtı: {m3u_response.status_code}")
         m3u_response.raise_for_status()
         m3u_content = m3u_response.text
         final_url = m3u_response.url
+        print(f"Nihai URL: {final_url}")
 
         file_type = detect_m3u_type(m3u_content)
         if file_type == "m3u":
@@ -176,8 +182,19 @@ def proxy_ts():
         for key, value in request.args.items()
         if key.lower().startswith("h_")
     }
+    default_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0",
+        "Referer": "https://oha.to/",
+        "Origin": "https://oha.to",
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+    headers = {**default_headers, **headers}
     try:
+        print(f"TS içeriği alınıyor: {ts_url}")
         response = requests.get(ts_url, headers=headers, stream=True, allow_redirects=True, timeout=REQUEST_TIMEOUT, proxies=get_proxy_for_url(ts_url), verify=VERIFY_SSL)
+        print(f"TS sunucu yanıtı: {response.status_code}")
         response.raise_for_status()
         def generate_and_cache():
             content_parts = []
@@ -208,8 +225,19 @@ def proxy_key():
         for key, value in request.args.items()
         if key.lower().startswith("h_")
     }
+    default_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0",
+        "Referer": "https://oha.to/",
+        "Origin": "https://oha.to",
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+    headers = {**default_headers, **headers}
     try:
+        print(f"KEY içeriği alınıyor: {key_url}")
         response = requests.get(key_url, headers=headers, allow_redirects=True, timeout=REQUEST_TIMEOUT, proxies=get_proxy_for_url(key_url), verify=VERIFY_SSL)
+        print(f"KEY sunucu yanıtı: {response.status_code}")
         response.raise_for_status()
         key_content = response.content
         KEY_CACHE[key_url] = key_content
