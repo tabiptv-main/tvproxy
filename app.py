@@ -87,6 +87,12 @@ def replace_key_uri(line, headers_query):
         return line.replace(key_url, proxied_key_url)
     return line
 
+def ensure_ts_extension(segment_url):
+    """Segment URL'sinin .ts uzantısıyla bittiğinden emin ol."""
+    if not segment_url.lower().endswith('.ts'):
+        return f"{segment_url}.ts"
+    return segment_url
+
 @app.route('/proxy/m3u')
 def proxy_m3u():
     m3u_url = request.args.get('url', '').strip()
@@ -139,6 +145,7 @@ def proxy_m3u():
                 line = replace_key_uri(line, headers_query)
             elif line and not line.startswith("#"):
                 segment_url = urljoin(base_url, line)
+                segment_url = ensure_ts_extension(segment_url)  # .ts uzantısını garanti et
                 line = f"{SERVER_BASE_URL}/proxy/ts?url={quote(segment_url)}&{headers_query}"
             modified_m3u8.append(line)
 
