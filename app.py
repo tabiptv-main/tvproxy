@@ -24,17 +24,21 @@ print(f"Sunucu temel URL'si: {SERVER_BASE_URL}")
 
 # --- Dinamik Başlık Yönetimi ---
 def get_dynamic_headers(target_url):
-    parsed = urlparse(target_url)
-    domain = f"{parsed.scheme}://{parsed.netloc}"
-    
+    parsed_target = urlparse(target_url)
+    target_domain = f"{parsed_target.scheme}://{parsed_target.netloc}"
+
+    referrer = request.referrer or target_domain
+    parsed_ref = urlparse(referrer)
+    base_ref_domain = f"{parsed_ref.scheme}://{parsed_ref.netloc}" if parsed_ref.scheme and parsed_ref.netloc else target_domain
+
     return {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept': '*/*',
         'accept-encoding': 'gzip, deflate, br, zstd',
         'Accept-Language': 'tr,en;q=0.9,en-GB;q=0.8,en-US;q=0.7',
         'DNT': '1',
-        'Origin': domain,
-        'Referer': domain + '/',
+        'Origin': base_ref_domain,
+        'Referer': base_ref_domain + '/',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-site'
@@ -69,28 +73,26 @@ def proxy_m3u():
     if not m3u_url:
         return "Hata: 'url' parametresi eksik", 400
 
-    # Önbellek kontrolü
     cache_key = f"{m3u_url}|{request.query_string.decode()}"
     if cache_key in M3U8_CACHE:
         print(f"Önbellek HIT: M3U8 {m3u_url}")
         return Response(
-            M3U8_CACHE[cache_key], 
+            M3U8_CACHE[cache_key],
             content_type="application/vnd.apple.mpegurl",
             headers={'Content-Disposition': 'attachment; filename="playlist.m3u8"'}
         )
 
     print(f"Önbellek MISS: M3U8 {m3u_url}")
 
-    # Dinamik başlıkları oluştur
     dynamic_headers = get_dynamic_headers(m3u_url)
     custom_headers = get_headers_from_request()
     headers = {**dynamic_headers, **custom_headers}
-    
+
     try:
         session = requests.Session()
         session.max_redirects = 5
         session.headers.update(headers)
-        
+
         print(f"M3U8 isteği gönderiliyor: {m3u_url}")
         response = session.get(
             m3u_url,
@@ -100,22 +102,21 @@ def proxy_m3u():
             stream=True
         )
         response.raise_for_status()
-        
+
         final_url = response.url
         print(f"Son URL: {final_url}")
-        
+
         m3u_content = response.text
         file_type = detect_m3u_type(m3u_content)
-        
+
         if file_type == "m3u":
             M3U8_CACHE[cache_key] = m3u_content
             return Response(
-                m3u_content, 
+                m3u_content,
                 content_type="application/vnd.apple.mpegurl",
                 headers={'Content-Disposition': 'attachment; filename="playlist.m3u8"'}
             )
 
-        # M3U8 işleme
         parsed_url = urlparse(final_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{os.path.dirname(parsed_url.path)}/"
         base_domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
@@ -133,9 +134,9 @@ def proxy_m3u():
 
         modified_content = "\n".join(modified_lines)
         M3U8_CACHE[cache_key] = modified_content
-        
+
         return Response(
-            modified_content, 
+            modified_content,
             content_type="application/vnd.apple.mpegurl",
             headers={'Content-Disposition': 'attachment; filename="playlist.m3u8"'}
         )
@@ -154,7 +155,7 @@ def proxy_ts():
         return "Hata: 'url' parametresi eksik", 400
 
     filename = os.path.basename(urlparse(ts_url).path)
-    
+
     if ts_url in TS_CACHE:
         print(f"Önbellek HIT: TS {filename}")
         return Response(
@@ -164,8 +165,7 @@ def proxy_ts():
         )
 
     print(f"Önbellek MISS: TS {filename}")
-    
-    # Dinamik başlıkları oluştur
+
     dynamic_headers = get_dynamic_headers(ts_url)
     custom_headers = get_headers_from_request()
     headers = {**dynamic_headers, **custom_headers}
@@ -205,7 +205,7 @@ def proxy_key():
         return "Hata: 'url' parametresi eksik", 400
 
     filename = os.path.basename(urlparse(key_url).path)
-    
+
     if key_url in KEY_CACHE:
         print(f"Önbellek HIT: KEY {filename}")
         return Response(
@@ -215,8 +215,7 @@ def proxy_key():
         )
 
     print(f"Önbellek MISS: KEY {filename}")
-    
-    # Dinamik başlıkları oluştur
+
     dynamic_headers = get_dynamic_headers(key_url)
     custom_headers = get_headers_from_request()
     headers = {**dynamic_headers, **custom_headers}
@@ -230,10 +229,10 @@ def proxy_key():
             verify=VERIFY_SSL
         )
         response.raise_for_status()
-        
+
         key_content = response.content
         KEY_CACHE[key_url] = key_content
-        
+
         return Response(
             key_content,
             content_type="application/octet-stream",
