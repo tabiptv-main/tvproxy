@@ -17,6 +17,7 @@ if not VERIFY_SSL:
 REQUEST_TIMEOUT = int(os.environ.get('REQUEST_TIMEOUT', 30))
 SERVER_BASE_URL = os.environ.get('SERVER_BASE_URL', 'https://tabiptv-tvproxy.hf.space')
 
+# CORS proxy listesi
 CORS_PROXIES = [
     "https://corsproxy.io/?",
     "https://thingproxy.freeboard.io/fetch/",
@@ -27,10 +28,11 @@ CORS_PROXIES = [
     "https://cors-anywhere.herokuapp.com/",
 ]
 
+# Fonksiyon: CORS proxy fallback + içerik kontrolü
 def get_with_cors_fallback(target_url, headers):
     for proxy_url in CORS_PROXIES:
+        proxied_url = proxy_url + target_url
         try:
-            proxied_url = proxy_url + target_url
             print(f"[CORS] Deneniyor: {proxied_url}")
             response = requests.get(
                 proxied_url,
@@ -38,14 +40,23 @@ def get_with_cors_fallback(target_url, headers):
                 timeout=REQUEST_TIMEOUT,
                 verify=VERIFY_SSL
             )
-            if response.status_code == 200:
-                print(f"[CORS] Başarılı: {proxy_url}")
-                return response
-            else:
-                print(f"[CORS] Başarısız cevap ({response.status_code}): {proxy_url}")
+            content_type = response.headers.get("Content-Type", "")
+            text_snippet = response.text.strip()[:100]
+
+            # HTML, boş, hata içerik varsa logla
+            if "text/html" in content_type or "<html" in text_snippet.lower():
+                print(f"[CORS] HTML döndü: {proxy_url} - Başlık: {content_type}")
+                continue
+            if "#EXTM3U" not in response.text:
+                print(f"[CORS] Geçersiz M3U8 içeriği ({proxy_url}) - Başlangıç: {text_snippet}")
+                continue
+
+            print(f"[CORS] ✅ Başarılı: {proxy_url}")
+            return response
         except Exception as e:
-            print(f"[CORS] Hata: {proxy_url} -> {str(e)}")
-    raise Exception("Hiçbir CORS proxy başarılı olmadı.")
+            print(f"[CORS] ❌ HATA: {proxy_url} -> {str(e)}")
+
+    raise Exception("Hiçbir CORS proxy işe yaramadı.")
 
 def get_dynamic_headers(target_url):
     parsed = urlparse(target_url)
@@ -97,7 +108,8 @@ def proxy_m3u():
 
     cache_key = f"{m3u_url}|{request.query_string.decode()}"
     if cache_key in M3U8_CACHE:
-        return Response(M3U8_CACHE[cache_key], content_type="application/vnd.apple.mpegurl")
+        return Response(M3U8_CACHE[cache_key], content_type="application/vnd.apple.mpegurl",
+                        headers={'Content-Disposition': 'attachment; filename="index.m3u8"'})
 
     dynamic_headers = get_dynamic_headers(m3u_url)
     custom_headers = get_headers_from_request()
@@ -111,7 +123,8 @@ def proxy_m3u():
 
         if file_type == "m3u":
             M3U8_CACHE[cache_key] = m3u_content
-            return Response(m3u_content, content_type="application/vnd.apple.mpegurl")
+            return Response(m3u_content, content_type="application/vnd.apple.mpegurl",
+                            headers={'Content-Disposition': 'attachment; filename="index.m3u8"'})
 
         parsed_url = urlparse(final_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{os.path.dirname(parsed_url.path)}/"
@@ -130,7 +143,8 @@ def proxy_m3u():
         modified_content = "\n".join(modified_lines)
         M3U8_CACHE[cache_key] = modified_content
 
-        return Response(modified_content, content_type="application/vnd.apple.mpegurl")
+        return Response(modified_content, content_type="application/vnd.apple.mpegurl",
+                        headers={'Content-Disposition': 'attachment; filename="index.m3u8"'})
 
     except Exception as e:
         return f"Proxy hatası: {str(e)}", 502
@@ -143,7 +157,8 @@ def proxy_ts():
 
     filename = os.path.basename(urlparse(ts_url).path)
     if ts_url in TS_CACHE:
-        return Response(TS_CACHE[ts_url], content_type="video/mp2t")
+        return Response(TS_CACHE[ts_url], content_type="video/mp2t",
+                        headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
     dynamic_headers = get_dynamic_headers(ts_url)
     custom_headers = get_headers_from_request()
@@ -153,7 +168,8 @@ def proxy_ts():
         response = get_with_cors_fallback(ts_url, headers)
         content = response.content
         TS_CACHE[ts_url] = content
-        return Response(content, content_type="video/mp2t")
+        return Response(content, content_type="video/mp2t",
+                        headers={'Content-Disposition': f'attachment; filename="{filename}"'})
     except Exception as e:
         return f"TS segment hatası: {str(e)}", 502
 
@@ -165,7 +181,8 @@ def proxy_key():
 
     filename = os.path.basename(urlparse(key_url).path)
     if key_url in KEY_CACHE:
-        return Response(KEY_CACHE[key_url], content_type="application/octet-stream")
+        return Response(KEY_CACHE[key_url], content_type="application/octet-stream",
+                        headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
     dynamic_headers = get_dynamic_headers(key_url)
     custom_headers = get_headers_from_request()
@@ -175,13 +192,14 @@ def proxy_key():
         response = get_with_cors_fallback(key_url, headers)
         key_content = response.content
         KEY_CACHE[key_url] = key_content
-        return Response(key_content, content_type="application/octet-stream")
+        return Response(key_content, content_type="application/octet-stream",
+                        headers={'Content-Disposition': f'attachment; filename="{filename}"'})
     except Exception as e:
         return f"Anahtar indirme hatası: {str(e)}", 502
 
 @app.route('/')
 def index():
-    return f"Proxy aktif - {SERVER_BASE_URL}"
+    return f"Proxy çalışıyor - {SERVER_BASE_URL}"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 7860))
