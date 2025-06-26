@@ -76,7 +76,7 @@ def proxy_m3u():
         return Response(
             M3U8_CACHE[cache_key], 
             content_type="application/vnd.apple.mpegurl",
-            headers={'Content-Disposition': 'attachment; filename="index.m3u8"'}
+            headers={'Content-Disposition': 'attachment; filename="playlist.m3u8"'}
         )
 
     print(f"Önbellek MISS: M3U8 {m3u_url}")
