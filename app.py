@@ -17,46 +17,9 @@ if not VERIFY_SSL:
 REQUEST_TIMEOUT = int(os.environ.get('REQUEST_TIMEOUT', 30))
 SERVER_BASE_URL = os.environ.get('SERVER_BASE_URL', 'https://tabiptv-tvproxy.hf.space')
 
-# CORS proxy listesi
-CORS_PROXIES = [
-    "https://corsproxy.io/?",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://api.codetabs.com/v1/proxy/?quest=",
-    "https://yacdn.org/proxy/",
-    "https://proxy.cors.sh/",
-    "https://api.allorigins.win/raw?url=",
-    "https://cors-anywhere.herokuapp.com/",
-]
-
-# Fonksiyon: CORS proxy fallback + içerik kontrolü
-def get_with_cors_fallback(target_url, headers):
-    for proxy_url in CORS_PROXIES:
-        proxied_url = proxy_url + target_url
-        try:
-            print(f"[CORS] Deneniyor: {proxied_url}")
-            response = requests.get(
-                proxied_url,
-                headers=headers,
-                timeout=REQUEST_TIMEOUT,
-                verify=VERIFY_SSL
-            )
-            content_type = response.headers.get("Content-Type", "")
-            text_snippet = response.text.strip()[:100]
-
-            # HTML, boş, hata içerik varsa logla
-            if "text/html" in content_type or "<html" in text_snippet.lower():
-                print(f"[CORS] HTML döndü: {proxy_url} - Başlık: {content_type}")
-                continue
-            if "#EXTM3U" not in response.text:
-                print(f"[CORS] Geçersiz M3U8 içeriği ({proxy_url}) - Başlangıç: {text_snippet}")
-                continue
-
-            print(f"[CORS] ✅ Başarılı: {proxy_url}")
-            return response
-        except Exception as e:
-            print(f"[CORS] ❌ HATA: {proxy_url} -> {str(e)}")
-
-    raise Exception("Hiçbir CORS proxy işe yaramadı.")
+M3U8_CACHE = TTLCache(maxsize=200, ttl=60)
+TS_CACHE = LRUCache(maxsize=1000)
+KEY_CACHE = LRUCache(maxsize=200)
 
 def get_dynamic_headers(target_url):
     parsed = urlparse(target_url)
@@ -77,10 +40,6 @@ def get_dynamic_headers(target_url):
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-site'
     }
-
-M3U8_CACHE = TTLCache(maxsize=200, ttl=60)
-TS_CACHE = LRUCache(maxsize=1000)
-KEY_CACHE = LRUCache(maxsize=200)
 
 def detect_m3u_type(content):
     return "m3u8" if "#EXTM3U" in content and "#EXTINF" in content else "m3u"
@@ -116,8 +75,7 @@ def proxy_m3u():
     headers = {**dynamic_headers, **custom_headers}
 
     try:
-        response = get_with_cors_fallback(m3u_url, headers)
-        final_url = response.url
+        response = requests.get(m3u_url, headers=headers, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL)
         m3u_content = response.text
         file_type = detect_m3u_type(m3u_content)
 
@@ -126,7 +84,7 @@ def proxy_m3u():
             return Response(m3u_content, content_type="application/vnd.apple.mpegurl",
                             headers={'Content-Disposition': 'attachment; filename="index.m3u8"'})
 
-        parsed_url = urlparse(final_url)
+        parsed_url = urlparse(m3u_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{os.path.dirname(parsed_url.path)}/"
         headers_query = "&".join([f"h_{quote(k)}={quote(v)}" for k, v in headers.items()])
 
@@ -165,7 +123,7 @@ def proxy_ts():
     headers = {**dynamic_headers, **custom_headers}
 
     try:
-        response = get_with_cors_fallback(ts_url, headers)
+        response = requests.get(ts_url, headers=headers, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL)
         content = response.content
         TS_CACHE[ts_url] = content
         return Response(content, content_type="video/mp2t",
@@ -189,7 +147,7 @@ def proxy_key():
     headers = {**dynamic_headers, **custom_headers}
 
     try:
-        response = get_with_cors_fallback(key_url, headers)
+        response = requests.get(key_url, headers=headers, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL)
         key_content = response.content
         KEY_CACHE[key_url] = key_content
         return Response(key_content, content_type="application/octet-stream",
