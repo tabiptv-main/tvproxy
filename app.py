@@ -15,7 +15,7 @@ if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 REQUEST_TIMEOUT = int(os.environ.get('REQUEST_TIMEOUT', 30))
-SERVER_BASE_URL = os.environ.get('SERVER_BASE_URL', 'https://tabiptv-tvproxy.hf.space')
+SERVER_BASE_URL = os.environ.get('SERVER_BASE_URL', 'https://tvproxy-xpwt.onrender.com')
 
 M3U8_CACHE = TTLCache(maxsize=200, ttl=60)
 TS_CACHE = LRUCache(maxsize=1000)
